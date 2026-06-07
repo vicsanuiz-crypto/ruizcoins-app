@@ -77,6 +77,9 @@
 
         .btn-buy { background: var(--primary-red); color: white; border: none; padding: 8px; width: 100%; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .badge-earn { background: #e8f8f5; color: var(--primary-green); padding: 8px; border-radius: 8px; font-weight: bold; font-size: 12px; border: 1px solid var(--primary-green); }
+        /* Gasto fijo / informativo: el alumno lo ve pero NO lo puede comprar */
+        .badge-fixed { background: #f2f4f6; color: #7f8c8d; padding: 8px; border-radius: 8px; font-weight: bold; font-size: 12px; border: 1px dashed #bdc3c7; }
+        .badge-fixed small { display: block; font-size: 9px; font-weight: 600; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* --- BARRA DE NAVEGACIÓN INFERIOR --- */
         .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #eee; border-radius: 20px 20px 0 0; z-index: 100; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
@@ -312,14 +315,17 @@
             const esComprable = c.hasOwnProperty('es_comprable') ? c.es_comprable : 1;
 
             if (c.tipo === 'Gasto') {
-                const botonCompra = esComprable
-                    ? `<button class="btn-buy" onclick="comprarArticulo('${c.concepto}', ${c.valor})">${c.valor} CR</button>`
-                    : `<span style="font-size:10px; color:gray; opacity:0.7;">(Info)</span>`;
+                const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
+                // Comprable -> botón rojo de compra. Informativo -> etiqueta fija (sin compra).
+                const contenido = esComprable
+                    ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${c.valor} CR</button>`
+                    : `<div class="badge-fixed">-${c.valor} CR<small>Informativo</small></div>`;
+                const icono = esComprable ? '🛒' : '🔒';
 
                 gridGastos.innerHTML += `
                     <div class="market-item">
-                        <div class="item-info"><h4>🛒 ${c.concepto}</h4></div>
-                        ${botonCompra}
+                        <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
+                        ${contenido}
                     </div>`;
             } else {
                 gridIngresos.innerHTML += `
