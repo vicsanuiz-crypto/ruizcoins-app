@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RuizCoins - Central Bank</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e272e; color: #d2dae2; margin: 0; padding: 20px; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3c40c6; padding-bottom: 10px; margin-bottom: 20px; }
+        h1 { color: #0fbcf9; margin: 0; }
+        
+        .control-panel { background: #2c3e50; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .control-panel input { padding: 10px; font-size: 16px; width: 100px; border-radius: 5px; border: none; }
+        .btn-magic { background: #0fbcf9; color: #1e272e; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .btn-magic:hover { background: #4bcffa; }
+
+        table { width: 100%; border-collapse: collapse; background: #2c3e50; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #34495e; }
+        th { background: #34495e; color: #0fbcf9; }
+        
+        .btn-action { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; }
+        .btn-pay { background: #05c46b; }
+        .btn-fine { background: #ff3f34; }
+        .btn-danger { background: #808e9b; } 
+        .btn-nuclear { background: #c0392b; } 
+        .btn-add { background: #0fbcf9; color: #1e272e; padding: 10px 20px; font-size: 16px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-bar">
+        <h1>🏛️ RuizCoins Central Bank</h1>
+        <button class="btn-action btn-add" onclick="addStudent()">➕ Add Pupil</button>
+    </div>
+
+    <div class="control-panel">
+        <div>
+            <h3>Apply Variable Interest (Vaults)</h3>
+            <p style="font-size: 12px; color: #808e9b;">Sets the percentage of interest for all active vaults.</p>
+        </div>
+        <div>
+            <input type="number" id="interest-rate" value="5" min="0" max="50"> <b>%</b>
+            <button class="btn-magic" onclick="applyInterest()">Execute Interest</button>
+            <button class="btn-action btn-danger" style="margin-left: 10px;" onclick="resetEconomy()">⚠️ Reset Economy</button>
+            <button class="btn-action btn-nuclear" style="margin-left: 10px;" onclick="resetPupils()">🗑️ Delete All Pupils</button>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Student</th>
+                <th>Role</th>
+                <th>Liquid Balance</th>
+                <th>Vault Savings</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="student-list">
+            </tbody>
+    </table>
+</div>
+
+<script>
+    const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
+
+    async function loadClass() {
+        const response = await fetch(`${API_BASE_URL}/admin/students`);
+        const students = await response.json();
+        const tbody = document.getElementById('student-list');
+        tbody.innerHTML = '';
+
+        if (students.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #7f8c8d;">No students in the database. Add a pupil to start!</td></tr>`;
+            return;
+        }
+
+        students.forEach(s => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${s.id_alumno}</td>
+                    <td><b>${s.nombre}</b></td>
+                    <td>${s.cargo}</td>
+                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} RC</td>
+                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} RC</td>
+                    <td>
+                        <button class="btn-action btn-pay" onclick="sendMoney(${s.id_alumno}, '${s.nombre}')">+ Pay</button>
+                        <button class="btn-action btn-fine" onclick="applyFine(${s.id_alumno}, '${s.nombre}')">- Fine</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    async function addStudent() {
+        const name = prompt("Enter the new student's name:");
+        if (!name) return;
+        
+        let role = prompt(`Enter ${name}'s role (Leave blank for 'Student'):`);
+        if (!role) role = "Student"; // Valor por defecto
+
+        await fetch(`${API_BASE_URL}/admin/add-student`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: name, cargo: role })
+        });
+        
+        loadClass(); // Refresca la tabla para que aparezca el nuevo
+    }
+
+    async function sendMoney(id, name) {
+        const amount = prompt(`How much to pay ${name}?`);
+        if (!amount) return;
+        const concept = prompt(`Concept (e.g., Salary, Bonus):`);
+        if (!concept) return;
+
+        await fetch(`${API_BASE_URL}/admin/transaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_alumno: id, cantidad: parseFloat(amount), concepto: concept })
+        });
+        loadClass();
+    }
+
+    async function applyFine(id, name) {
+        const amount = prompt(`How much to fine ${name}? (Enter a positive number)`);
+        if (!amount) return;
+        const concept = prompt(`Reason for the fine (e.g., Messy desk):`);
+        if (!concept) return;
+
+        await fetch(`${API_BASE_URL}/admin/transaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_alumno: id, cantidad: -parseFloat(amount), concepto: `Fine: ${concept}` })
+        });
+        loadClass();
+    }
+
+    async function applyInterest() {
+        const rateInput = document.getElementById('interest-rate').value;
+        const rateDecimal = parseFloat(rateInput) / 100; 
+
+        if(confirm(`Are you sure you want to apply a ${rateInput}% interest to all savings?`)) {
+            await fetch(`${API_BASE_URL}/admin/apply-interest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ interest_rate: rateDecimal })
+            });
+            alert('Interest successfully applied to all vaults!');
+            loadClass();
+        }
+    }
+
+    async function resetEconomy() {
+        if(confirm("⚠️ WARNING: This will set ALL balances to 0 and delete ALL history. Are you sure?")) {
+            if(confirm("Are you ABSOLUTELY sure? There is no undo.")) {
+                await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
+                alert('Economy has been reset for the new term.');
+                loadClass();
+            }
+        }
+    }
+
+    async function resetPupils() {
+        if(confirm("🚨 EXTREME WARNING: This will DELETE all students from the database. Use only for a new school year. Proceed?")) {
+            const passcode = prompt("Type 'DELETE' to confirm:");
+            if(passcode === 'DELETE') {
+                await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
+                alert('All pupils deleted. Database is clean.');
+                loadClass();
+            } else {
+                alert('Action cancelled.');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadClass);
+</script>
+
+</body>
+</html>
