@@ -10,7 +10,6 @@
         .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3c40c6; padding-bottom: 10px; margin-bottom: 20px; }
         h1 { color: #0fbcf9; margin: 0; }
         
-        /* --- PESTAÑAS ADMIN --- */
         .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
         .tab-btn { background: #2c3e50; color: #808e9b; border: none; padding: 12px 25px; border-radius: 8px 8px 0 0; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
         .tab-btn.active { background: #3c40c6; color: white; }
@@ -38,7 +37,6 @@
         .btn-nuclear { background: #c0392b; } 
         .btn-add { background: #0fbcf9; color: #1e272e; padding: 10px 20px; font-size: 16px; }
 
-        /* --- COLUMNAS DEL TARIFARIO --- */
         .tarifario-columns { display: flex; gap: 15px; margin-top: 15px; }
         .tarifario-col { flex: 1; background: #1e272e; padding: 12px; border-radius: 6px; }
         .col-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #444; text-align: center; }
@@ -65,12 +63,12 @@
                 <button class="btn-magic" onclick="applyInterest()">Aplicar a todos</button>
             </div>
             
-            <div class="control-box">
-                <h3>💸 Acción Masiva (Toda la clase)</h3>
+            <div class="control-box" style="border-left: 4px solid #ff3f34;">
+                <h3 style="color: #ff3f34;">🏛️ Cobro de Impuestos (Masivo)</h3>
                 <input type="number" id="mass-amount" placeholder="Cantidad CR" style="width: 90px;">
-                <input type="text" id="mass-concept" placeholder="Motivo" style="width: 140px;">
-                <button class="btn-magic" style="background: #05c46b;" onclick="massTransaction('add')">+ Pagar</button>
-                <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Multar</button>
+                <input type="text" id="mass-concept" placeholder="Ej: Mantenimiento Pupitre" style="width: 150px;">
+                <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
+                <button class="btn-magic" style="background: #05c46b; margin-top: 5px;" onclick="massTransaction('add')">+ Subvención</button>
             </div>
 
             <div class="control-box" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
@@ -108,6 +106,7 @@
 
             <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
                 <h3 style="color: #0fbcf9; margin-top: 0;">🛒 Gestión del Tarifario</h3>
+                
                 <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
                     <input type="text" id="nombreRecurso" placeholder="Concepto (Ej: Lápiz)" style="flex: 1; padding: 8px; border-radius: 4px; border: none; min-width: 120px;">
                     <select id="tipoRecurso" style="padding: 8px; border-radius: 4px; border: none;">
@@ -116,6 +115,12 @@
                     </select>
                     <input type="number" id="valorRecurso" placeholder="CR" style="width: 70px; padding: 8px; border-radius: 4px; border: none;">
                     <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
+                </div>
+                
+                <div style="margin-bottom: 15px; padding: 10px; background: #1e272e; border-radius: 6px; display: flex; align-items: center; gap: 10px; border-left: 4px solid #e74c3c;">
+                    <span style="color: #e74c3c; font-weight: bold; font-size: 14px;">📈 Inflación:</span>
+                    <input type="number" id="inflation-rate" placeholder="%" style="width: 60px; padding: 6px; border-radius: 4px; border: none;">
+                    <button class="btn-magic" style="background: #e74c3c; padding: 6px 12px; font-size: 12px;" onclick="applyInflation()">Subir Precios</button>
                 </div>
                 
                 <div class="tarifario-columns">
@@ -165,8 +170,8 @@
                     <td>${s.id_alumno}</td>
                     <td><b>${s.nombre}</b></td>
                     <td>${s.cargo}</td>
-                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} RC</td>
-                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} RC</td>
+                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} CR</td>
+                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} CR</td>
                     <td>
                         <button class="btn-action btn-pay" onclick="sendMoney(${s.id_alumno}, '${s.nombre}')">+ Pay</button>
                         <button class="btn-action btn-fine" onclick="applyFine(${s.id_alumno}, '${s.nombre}')">- Fine</button>
@@ -227,9 +232,12 @@
         let amount = parseFloat(document.getElementById('mass-amount').value);
         let concept = document.getElementById('mass-concept').value;
         if(!amount || !concept) return alert("Introduce una cantidad y un motivo.");
+        
+        const typeText = type === 'sub' ? 'COBRAR' : 'PAGAR';
         if (type === 'sub') amount = -amount;
-        if(confirm(`Vas a aplicar un movimiento de ${amount} RC a TODA LA CLASE por "${concept}". ¿Continuar?`)) {
-            await fetch(`${API_BASE_URL}/mass-transaction`, {
+        
+        if(confirm(`Vas a ${typeText} ${Math.abs(amount)} CR a TODA LA CLASE por "${concept}". ¿Continuar?`)) {
+            await fetch(`${API_BASE_URL}/admin/mass-transaction`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cantidad: amount, concepto: concept })
@@ -250,6 +258,22 @@
                 body: JSON.stringify({ interest_rate: rateDecimal })
             });
             loadClass();
+        }
+    }
+
+    async function applyInflation() {
+        const rateInput = document.getElementById('inflation-rate').value;
+        if(!rateInput || rateInput <= 0) return alert("Introduce un porcentaje válido.");
+        
+        if(confirm(`📈 ¿Estás seguro de subir todos los precios de GASTOS un ${rateInput}%? Esto afectará al poder adquisitivo de los alumnos.`)) {
+            await fetch(`${API_BASE_URL}/admin/inflation`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rate: rateInput })
+            });
+            document.getElementById('inflation-rate').value = '';
+            cargarCatalogoAdmin();
+            alert(`Inflación del ${rateInput}% aplicada con éxito.`);
         }
     }
 
@@ -304,7 +328,6 @@
         }
     }
 
-    // --- FUNCIONES DEL TARIFARIO (SEPARADO EN DOS COLUMNAS) ---
     async function cargarCatalogoAdmin() {
         const res = await fetch(`${API_BASE_URL}/catalogo`);
         const catalogo = await res.json();
