@@ -61,9 +61,12 @@
 
     <div style="display: flex; gap: 20px;">
         <div style="flex: 1; padding: 15px; background: #2c3e50; border-radius: 8px;">
-            <h3>📢 Publicar Aviso Oficial</h3>
-            <input type="text" id="nuevoAviso" placeholder="Ej: Mañana se cobra el IBI..." style="width: 60%; padding: 8px;">
-            <button class="btn-magic" onclick="publicarAviso()">Publicar</button>
+            <h3>📢 Tablón de Anuncios</h3>
+            <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                <input type="text" id="nuevoAviso" placeholder="Ej: Mañana se cobra el IBI..." style="flex: 1; padding: 8px;">
+                <button class="btn-magic" onclick="publicarAviso()">Publicar</button>
+            </div>
+            <ul id="admin-lista-avisos" style="list-style: none; padding: 0; font-size: 14px;"></ul>
         </div>
 
         <div style="flex: 1; padding: 15px; background: #2c3e50; border-radius: 8px;">
@@ -165,7 +168,7 @@
     }
 
     async function deleteStudent(id, name) {
-        if(confirm(`🚨 ¿Estás seguro de que quieres BORRAR a ${name} y todo su historial? Esta acción no se puede deshacer.`)) {
+        if(confirm(`🚨 ¿Borrar a ${name} y todo su historial?`)) {
             await fetch(`${API_BASE_URL}/admin/delete-student/${id}`, { method: 'DELETE' });
             loadClass();
         }
@@ -174,12 +177,8 @@
     async function massTransaction(type) {
         let amount = parseFloat(document.getElementById('mass-amount').value);
         let concept = document.getElementById('mass-concept').value;
-        if(!amount || !concept) {
-            alert("Por favor, introduce una cantidad y un motivo.");
-            return;
-        }
-        if (type === 'sub') amount = -amount; // Si es multa, lo convertimos a negativo
-        
+        if(!amount || !concept) return alert("Introduce una cantidad y un motivo.");
+        if (type === 'sub') amount = -amount;
         if(confirm(`Vas a aplicar un movimiento de ${amount} RC a TODA LA CLASE por "${concept}". ¿Continuar?`)) {
             await fetch(`${API_BASE_URL}/admin/mass-transaction`, {
                 method: 'POST',
@@ -195,34 +194,47 @@
     async function applyInterest() {
         const rateInput = document.getElementById('interest-rate').value;
         const rateDecimal = parseFloat(rateInput) / 100;
-        if(confirm(`Are you sure you want to apply a ${rateInput}% interest to all savings?`)) {
+        if(confirm(`¿Aplicar un ${rateInput}% de interés a todos los ahorros?`)) {
             await fetch(`${API_BASE_URL}/admin/apply-interest`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ interest_rate: rateDecimal })
             });
-            alert('Interest successfully applied to all vaults!');
             loadClass();
         }
     }
 
     async function resetEconomy() {
-        if(confirm("⚠️ WARNING: This will set ALL balances to 0 and delete ALL history. Are you sure?")) {
+        if(confirm("⚠️ ¿Poner saldos a 0 y borrar historial?")) {
             await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
-            alert('Economy has been reset.');
             loadClass();
         }
     }
 
     async function resetPupils() {
-        if(confirm("🚨 EXTREME WARNING: This will DELETE all students. Proceed?")) {
-            const passcode = prompt("Type 'DELETE' to confirm:");
-            if(passcode === 'DELETE') {
+        if(confirm("🚨 ¿BORRAR a todos los alumnos?")) {
+            if(prompt("Escribe 'DELETE' para confirmar:") === 'DELETE') {
                 await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
-                alert('Database is clean.');
                 loadClass();
             }
         }
+    }
+
+    // --- FUNCIONES DEL TABLÓN Y CATÁLOGO ---
+    async function cargarAvisosAdmin() {
+        const res = await fetch(`${API_BASE_URL}/avisos`);
+        const avisos = await res.json();
+        const lista = document.getElementById('admin-lista-avisos');
+        lista.innerHTML = '';
+        avisos.forEach(a => {
+            const fecha = new Date(a.fecha).toLocaleDateString();
+            lista.innerHTML += `
+                <li style="background: #34495e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center;">
+                    <span><b>[${fecha}]</b> ${a.mensaje}</span>
+                    <button class="btn-action btn-nuclear" onclick="borrarAviso(${a.id})" style="padding: 4px 8px; font-size: 10px;">🗑️</button>
+                </li>
+            `;
+        });
     }
 
     async function publicarAviso() {
@@ -234,7 +246,14 @@
             body: JSON.stringify({mensaje: mensaje})
         });
         document.getElementById('nuevoAviso').value = '';
-        alert('¡Aviso publicado con éxito!');
+        cargarAvisosAdmin();
+    }
+
+    async function borrarAviso(id) {
+        if(confirm("¿Eliminar este aviso del tablón?")) {
+            await fetch(`${API_BASE_URL}/avisos/${id}`, { method: 'DELETE' });
+            cargarAvisosAdmin();
+        }
     }
 
     async function añadirRecurso() {
@@ -252,7 +271,10 @@
         alert('¡Recurso añadido al mercado!');
     }
 
-    document.addEventListener('DOMContentLoaded', loadClass);
+    document.addEventListener('DOMContentLoaded', () => {
+        loadClass();
+        cargarAvisosAdmin(); // Carga la lista de anuncios al abrir
+    });
 </script>
 
 </body>
