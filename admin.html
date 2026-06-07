@@ -40,7 +40,7 @@
         .tarifario-columns { display: flex; gap: 15px; margin-top: 15px; }
         .tarifario-col { flex: 1; background: #1e272e; padding: 12px; border-radius: 6px; }
         .col-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #444; text-align: center; }
-    </style>
+            </style>
 </head>
 <body>
 
@@ -93,6 +93,7 @@
                         <input type="checkbox" id="esComprable" checked> Comprable
                     </label>
                     <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
+                    <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
                 </div>
                 <div class="tarifario-columns">
                     <div class="tarifario-col"><div class="col-title" style="color: #e74c3c;">Gastos (-)</div><ul id="admin-lista-gastos" style="list-style:none; padding:0;"></ul></div>
@@ -145,6 +146,13 @@
             body: JSON.stringify({concepto, tipo, valor: parseInt(valor), es_comprable: esComprable})
         });
         cargarCatalogoAdmin();
+    }
+
+    async function limpiarDuplicados() {
+        if(confirm("¿Limpiar duplicados del tarifario?")) {
+            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, { method: 'POST' });
+            cargarCatalogoAdmin();
+        }
     }
     
     // Incluye aquí el resto de funciones (loadClass, publicarAviso, etc) que ya tenías.
