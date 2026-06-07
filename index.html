@@ -99,6 +99,24 @@
             <h1 id="main-balance">💰 0.0 RC</h1>
         </div>
 
+<!-- PANELES NUEVOS -->
+<div id="seccionNovedades" style="display:none; margin-top: 30px;">
+    <h3>📢 Tablón del Banco Central</h3>
+    <ul id="listaAvisos" style="background:#f9f9f9; padding:15px; border-radius:5px; text-align: left; margin-bottom: 20px;"></ul>
+    
+    <h3>🛒 Tarifario del Aula</h3>
+    <table border="1" width="100%" style="border-collapse: collapse; text-align: left; background: white;">
+        <thead style="background: #eee;">
+            <tr>
+                <th style="padding: 8px;">Concepto</th>
+                <th style="padding: 8px;">Tipo</th>
+                <th style="padding: 8px;">Valor</th>
+            </tr>
+        </thead>
+        <tbody id="tablaCatalogo"></tbody>
+    </table>
+</div>
+        
         <div class="actions-grid">
             <button class="btn-action btn-earn"><i class="fa-solid fa-rocket"></i><br>Earn</button>
             <button class="btn-action btn-market" onclick="document.getElementById('marketModal').style.display='flex'">
@@ -177,10 +195,14 @@
                 document.getElementById('login-screen').style.transform = 'translateY(-100%)';
                 
                 // Mostrar y cargar datos
-                setTimeout(() => {
-                    document.getElementById('dashboard-content').style.display = 'block';
-                    loadStudentData();
-                }, 300); // Esperar a que termine la animación
+        setTimeout(() => {
+            document.getElementById('dashboard-content').style.display = 'block';
+            document.getElementById('seccionNovedades').style.display = 'block';
+            loadStudentData();
+            cargarAvisos();
+            cargarCatalogo();
+        }, 300); // Esperar a que termine la animación
+                
             } else {
                 // ID no existe
                 errorMsg.style.display = 'block';
@@ -275,6 +297,35 @@
         document.getElementById('btn-deposit').addEventListener('click', () => handleVaultAction('deposit'));
         document.getElementById('btn-withdraw').addEventListener('click', () => handleVaultAction('withdraw'));
     });
+async function cargarAvisos() {
+    const res = await fetch(`${API_BASE_URL}/avisos`);
+    const avisos = await res.json();
+    const lista = document.getElementById('listaAvisos');
+    lista.innerHTML = '';
+    avisos.forEach(a => {
+        // Cortamos la fecha para que se vea bonita (Día/Mes/Año)
+        const fechaCorta = new Date(a.fecha).toLocaleDateString();
+        lista.innerHTML += `<li style="margin-bottom: 5px;"><strong>[${fechaCorta}]</strong>: ${a.mensaje}</li>`;
+    });
+}
+
+async function cargarCatalogo() {
+    const res = await fetch(`${API_BASE_URL}/catalogo`);
+    const catalogo = await res.json();
+    const tabla = document.getElementById('tablaCatalogo');
+    tabla.innerHTML = '';
+    catalogo.forEach(c => {
+        const color = c.tipo === 'Gasto' ? 'red' : 'green';
+        const signo = c.tipo === 'Gasto' ? '-' : '+';
+        tabla.innerHTML += `
+            <tr>
+                <td style="padding: 8px;">${c.concepto}</td>
+                <td style="padding: 8px; color: ${color}; font-weight: bold;">${c.tipo}</td>
+                <td style="padding: 8px; color: ${color}; font-weight: bold;">${signo}${c.valor} CR</td>
+            </tr>`;
+    });
+}
+    
 </script>
 </body>
 </html>
