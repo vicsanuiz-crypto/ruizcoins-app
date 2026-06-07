@@ -48,6 +48,23 @@
         </div>
     </div>
 
+    <div style="margin-top: 20px; padding: 15px; background: #2c3e50; border-radius: 8px; margin-bottom: 20px;">
+        <h3>📢 Publicar Aviso Oficial</h3>
+        <input type="text" id="nuevoAviso" placeholder="Ej: Mañana se cobra el IBI del pupitre" style="width: 70%; padding: 10px; border-radius: 5px; border: none;">
+        <button onclick="publicarAviso()" style="padding: 10px 20px; cursor:pointer;">Publicar Noticia</button>
+    </div>
+
+    <div style="margin-top: 20px; padding: 15px; background: #2c3e50; border-radius: 8px; margin-bottom: 20px;">
+        <h3>🛒 Añadir al Tarifario</h3>
+        <input type="text" id="nombreRecurso" placeholder="Ej: Alquiler Pupitre" style="padding: 10px; border-radius: 5px; border: none;">
+        <select id="tipoRecurso" style="padding: 10px; border-radius: 5px; border: none;">
+            <option value="Gasto">Gasto (-)</option>
+            <option value="Ingreso">Ingreso (+)</option>
+        </select>
+        <input type="number" id="valorRecurso" placeholder="CR" style="width: 80px; padding: 10px; border-radius: 5px; border: none;">
+        <button onclick="añadirRecurso()" style="padding: 10px 20px; cursor:pointer;">Añadir al Mercado</button>
+    </div>
+
     <table>
         <thead>
             <tr>
@@ -59,8 +76,7 @@
                 <th>Actions</th>
             </tr>
         </thead>
-        <tbody id="student-list">
-            </tbody>
+        <tbody id="student-list"></tbody>
     </table>
 </div>
 
@@ -98,17 +114,14 @@
     async function addStudent() {
         const name = prompt("Enter the new student's name:");
         if (!name) return;
-        
         let role = prompt(`Enter ${name}'s role (Leave blank for 'Student'):`);
-        if (!role) role = "Student"; // Valor por defecto
-
+        if (!role) role = "Student";
         await fetch(`${API_BASE_URL}/admin/add-student`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ nombre: name, cargo: role })
         });
-        
-        loadClass(); // Refresca la tabla para que aparezca el nuevo
+        loadClass();
     }
 
     async function sendMoney(id, name) {
@@ -116,7 +129,6 @@
         if (!amount) return;
         const concept = prompt(`Concept (e.g., Salary, Bonus):`);
         if (!concept) return;
-
         await fetch(`${API_BASE_URL}/admin/transaction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -130,7 +142,6 @@
         if (!amount) return;
         const concept = prompt(`Reason for the fine (e.g., Messy desk):`);
         if (!concept) return;
-
         await fetch(`${API_BASE_URL}/admin/transaction`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -141,8 +152,7 @@
 
     async function applyInterest() {
         const rateInput = document.getElementById('interest-rate').value;
-        const rateDecimal = parseFloat(rateInput) / 100; 
-
+        const rateDecimal = parseFloat(rateInput) / 100;
         if(confirm(`Are you sure you want to apply a ${rateInput}% interest to all savings?`)) {
             await fetch(`${API_BASE_URL}/admin/apply-interest`, {
                 method: 'POST',
@@ -156,73 +166,51 @@
 
     async function resetEconomy() {
         if(confirm("⚠️ WARNING: This will set ALL balances to 0 and delete ALL history. Are you sure?")) {
-            if(confirm("Are you ABSOLUTELY sure? There is no undo.")) {
-                await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
-                alert('Economy has been reset for the new term.');
-                loadClass();
-            }
+            await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
+            alert('Economy has been reset.');
+            loadClass();
         }
     }
 
     async function resetPupils() {
-        if(confirm("🚨 EXTREME WARNING: This will DELETE all students from the database. Use only for a new school year. Proceed?")) {
+        if(confirm("🚨 EXTREME WARNING: This will DELETE all students. Proceed?")) {
             const passcode = prompt("Type 'DELETE' to confirm:");
             if(passcode === 'DELETE') {
                 await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
-                alert('All pupils deleted. Database is clean.');
+                alert('Database is clean.');
                 loadClass();
-            } else {
-                alert('Action cancelled.');
             }
         }
     }
-<!-- TABLÓN DE AVISOS -->
-<div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
-    <h3>📢 Publicar Aviso Oficial</h3>
-    <input type="text" id="nuevoAviso" placeholder="Ej: Mañana se cobra el IBI del pupitre" style="width: 70%; padding: 5px;">
-    <button onclick="publicarAviso()" style="padding: 6px 12px;">Publicar Noticia</button>
-</div>
 
-<!-- CATÁLOGO DE RECURSOS -->
-<div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
-    <h3>🛒 Añadir al Tarifario</h3>
-    <input type="text" id="nombreRecurso" placeholder="Ej: Alquiler Pupitre" style="padding: 5px;">
-    <select id="tipoRecurso" style="padding: 5px;">
-        <option value="Gasto">Gasto (-)</option>
-        <option value="Ingreso">Ingreso (+)</option>
-    </select>
-    <input type="number" id="valorRecurso" placeholder="CR" style="width: 80px; padding: 5px;">
-    <button onclick="añadirRecurso()" style="padding: 6px 12px;">Añadir al Mercado</button>
-</div>
-   
+    async function publicarAviso() {
+        const mensaje = document.getElementById('nuevoAviso').value;
+        if(!mensaje) return;
+        await fetch(`${API_BASE_URL}/avisos`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({mensaje: mensaje})
+        });
+        document.getElementById('nuevoAviso').value = '';
+        alert('¡Aviso publicado con éxito!');
+    }
+
+    async function añadirRecurso() {
+        const concepto = document.getElementById('nombreRecurso').value;
+        const tipo = document.getElementById('tipoRecurso').value;
+        const valor = document.getElementById('valorRecurso').value;
+        if(!concepto || !valor) return;
+        await fetch(`${API_BASE_URL}/catalogo`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({concepto: concepto, tipo: tipo, valor: parseInt(valor)})
+        });
+        document.getElementById('nombreRecurso').value = '';
+        document.getElementById('valorRecurso').value = '';
+        alert('¡Recurso añadido al mercado!');
+    }
+
     document.addEventListener('DOMContentLoaded', loadClass);
-
-async function publicarAviso() {
-    const mensaje = document.getElementById('nuevoAviso').value;
-    if(!mensaje) return;
-    await fetch(`${API_BASE_URL}/avisos`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({mensaje: mensaje})
-    });
-    document.getElementById('nuevoAviso').value = '';
-    alert('¡Aviso publicado con éxito!');
-}
-
-async function añadirRecurso() {
-    const concepto = document.getElementById('nombreRecurso').value;
-    const tipo = document.getElementById('tipoRecurso').value;
-    const valor = document.getElementById('valorRecurso').value;
-    if(!concepto || !valor) return;
-    await fetch(`${API_BASE_URL}/catalogo`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({concepto: concepto, tipo: tipo, valor: parseInt(valor)})
-    });
-    document.getElementById('nombreRecurso').value = '';
-    document.getElementById('valorRecurso').value = '';
-    alert('¡Recurso añadido al mercado!');
-}
 </script>
 
 </body>
