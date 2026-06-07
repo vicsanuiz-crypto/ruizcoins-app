@@ -296,13 +296,41 @@
     }
 
     async function cargarCatalogo() {
-        const res = await fetch(`${API_BASE_URL}/catalogo`);
-        const catalogo = await res.json();
-        const gridGastos = document.getElementById('grid-gastos');
-        const gridIngresos = document.getElementById('grid-ingresos');
+    const res = await fetch(`${API_BASE_URL}/catalogo`);
+    const catalogo = await res.json();
+    const gridGastos = document.getElementById('grid-gastos');
+    const gridIngresos = document.getElementById('grid-ingresos');
+    
+    // 1. Limpiamos ANTES de empezar el bucle
+    gridGastos.innerHTML = ''; 
+    gridIngresos.innerHTML = '';
+    
+    // 2. Procesamos cada item
+    catalogo.forEach(c => {
+        const esComprable = c.hasOwnProperty('es_comprable') ? c.es_comprable : 1;
         
-        gridGastos.innerHTML = '';
-        gridIngresos.innerHTML = '';
+        if (c.tipo === 'Gasto') {
+            const botonCompra = esComprable ? 
+                `<button class="btn-buy" onclick="comprarArticulo('${c.concepto}', ${c.valor})">${c.valor} CR</button>` : 
+                `<span style="font-size:10px; color:gray; opacity:0.7;">(Info)</span>`;
+            
+            gridGastos.innerHTML += `
+                <div class="market-item">
+                    <div class="item-info"><h4>🛒 ${c.concepto}</h4></div>
+                    ${botonCompra}
+                </div>`;
+        } else {
+            gridIngresos.innerHTML += `
+                <div class="market-item">
+                    <div class="item-info"><h4>⭐ ${c.concepto}</h4></div>
+                    <div class="badge-earn">+${c.valor} CR</div>
+                </div>`;
+        }
+    });
+
+    // 3. (Opcional) Mensaje si está vacío
+    if(gridGastos.innerHTML === '') gridGastos.innerHTML = '<p style="font-size:11px; color:gray; text-align:center;">Vacío.</p>';
+}
         
         catalogo.forEach(c => {
             if (c.tipo === 'Gasto') {
