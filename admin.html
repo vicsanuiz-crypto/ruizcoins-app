@@ -47,6 +47,12 @@
         .item-recurso { background: #1e272e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
         .item-recurso .item-label { display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer; }
         .item-recurso input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        .item-acciones { display: flex; align-items: center; gap: 4px; }
+
+        /* Botón que alterna entre Comprable / Solo informativo (solo en gastos) */
+        .btn-toggle { border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; white-space: nowrap; }
+        .btn-toggle.is-comprable { background: #05c46b; }
+        .btn-toggle.is-info { background: #808e9b; }
     </style>
 </head>
 <body>
@@ -274,15 +280,30 @@
             const isGasto = c.tipo === 'Gasto';
             const color = isGasto ? '#e74c3c' : '#05c46b';
             const signo = isGasto ? '-' : '+';
-            const icono = c.es_comprable ? '🛒' : 'ℹ️';
-            // SIN sombreado: ya no atenuamos los conceptos. El icono ℹ️ indica
-            // si es solo informativo (no comprable por el alumno).
+            const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
+            // El icono refleja el estado: 🛒 comprable, 🔒 solo informativo, ⭐ ingreso.
+            const icono = !isGasto ? '⭐' : (c.es_comprable ? '🛒' : '🔒');
+
+            // Solo los GASTOS pueden alternar entre comprable / informativo.
+            // El botón muestra el estado ACTUAL y al pulsarlo lo cambia al contrario.
+            const btnToggle = isGasto
+                ? `<button class="btn-toggle ${c.es_comprable ? 'is-comprable' : 'is-info'}"
+                        title="${c.es_comprable ? 'Comprable por los alumnos. Pulsa para hacerlo solo informativo.' : 'Solo informativo (sin compra). Pulsa para hacerlo comprable.'}"
+                        onclick="toggleComprable(${c.id}, ${c.es_comprable ? 0 : 1})">
+                        ${c.es_comprable ? '🛒 Comprable' : '🔒 Informativo'}
+                   </button>`
+                : '';
+
             const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
                 <label class="item-label">
                     <input type="checkbox" class="chk-recurso" value="${c.id}">
                     <span style="font-size:12px;">${icono} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} CR</span></span>
                 </label>
-                <button class="btn-action btn-nuclear" onclick="borrarRecurso(${c.id})">🗑️</button>
+                <div class="item-acciones">
+                    ${btnToggle}
+                    <button class="btn-action btn-magic" title="Editar concepto o valor" onclick="editarRecurso(${c.id}, '${conceptoEsc}', ${c.valor})">✏️</button>
+                    <button class="btn-action btn-nuclear" title="Eliminar" onclick="borrarRecurso(${c.id})">🗑️</button>
+                </div>
             </li>`;
             if (isGasto) { listaGastos.innerHTML += itemHTML; }
             else { listaIngresos.innerHTML += itemHTML; }
@@ -302,45 +323,3 @@
             body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable })
         });
         document.getElementById('nombreRecurso').value = '';
-        document.getElementById('valorRecurso').value = '';
-        cargarCatalogoAdmin();
-    }
-
-    async function borrarRecurso(id) {
-        await fetch(`${API_BASE_URL}/catalogo/${id}`, { method: 'DELETE' });
-        cargarCatalogoAdmin();
-    }
-
-    // NUEVO: marca/desmarca todas las casillas
-    function toggleSeleccionTodo(source) {
-        document.querySelectorAll('.chk-recurso').forEach(chk => { chk.checked = source.checked; });
-    }
-
-    // NUEVO: borra de golpe todos los conceptos seleccionados
-    async function borrarSeleccionados() {
-        const ids = Array.from(document.querySelectorAll('.chk-recurso:checked')).map(chk => chk.value);
-        if (ids.length === 0) return alert('No has seleccionado ningún concepto.');
-        if (!confirm(`¿Eliminar ${ids.length} concepto(s) seleccionado(s)?`)) return;
-
-        for (const id of ids) {
-            await fetch(`${API_BASE_URL}/catalogo/${id}`, { method: 'DELETE' });
-        }
-        cargarCatalogoAdmin();
-    }
-
-    async function limpiarDuplicados() {
-        if (confirm('¿Limpiar duplicados del tarifario?')) {
-            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, { method: 'POST' });
-            cargarCatalogoAdmin();
-        }
-    }
-
-    // ---------- ARRANQUE ----------
-    document.addEventListener('DOMContentLoaded', () => {
-        loadClass();
-        cargarAvisosAdmin();
-        cargarCatalogoAdmin();
-    });
-</script>
-</body>
-</html>
