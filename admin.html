@@ -176,8 +176,53 @@
             }
         }
     }
+<!-- TABLÓN DE AVISOS -->
+<div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
+    <h3>📢 Publicar Aviso Oficial</h3>
+    <input type="text" id="nuevoAviso" placeholder="Ej: Mañana se cobra el IBI del pupitre" style="width: 70%; padding: 5px;">
+    <button onclick="publicarAviso()" style="padding: 6px 12px;">Publicar Noticia</button>
+</div>
 
+<!-- CATÁLOGO DE RECURSOS -->
+<div style="margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px;">
+    <h3>🛒 Añadir al Tarifario</h3>
+    <input type="text" id="nombreRecurso" placeholder="Ej: Alquiler Pupitre" style="padding: 5px;">
+    <select id="tipoRecurso" style="padding: 5px;">
+        <option value="Gasto">Gasto (-)</option>
+        <option value="Ingreso">Ingreso (+)</option>
+    </select>
+    <input type="number" id="valorRecurso" placeholder="CR" style="width: 80px; padding: 5px;">
+    <button onclick="añadirRecurso()" style="padding: 6px 12px;">Añadir al Mercado</button>
+</div>
+   
     document.addEventListener('DOMContentLoaded', loadClass);
+
+async function publicarAviso() {
+    const mensaje = document.getElementById('nuevoAviso').value;
+    if(!mensaje) return;
+    await fetch(`${API_BASE_URL}/avisos`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({mensaje: mensaje})
+    });
+    document.getElementById('nuevoAviso').value = '';
+    alert('¡Aviso publicado con éxito!');
+}
+
+async function añadirRecurso() {
+    const concepto = document.getElementById('nombreRecurso').value;
+    const tipo = document.getElementById('tipoRecurso').value;
+    const valor = document.getElementById('valorRecurso').value;
+    if(!concepto || !valor) return;
+    await fetch(`${API_BASE_URL}/catalogo`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({concepto: concepto, tipo: tipo, valor: parseInt(valor)})
+    });
+    document.getElementById('nombreRecurso').value = '';
+    document.getElementById('valorRecurso').value = '';
+    alert('¡Recurso añadido al mercado!');
+}
 </script>
 
 </body>
