@@ -6,157 +6,179 @@
     <title>RuizCoins - Central Bank</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e272e; color: #d2dae2; margin: 0; padding: 20px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+        .container { max-width: 1000px; margin: 0 auto; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3c40c6; padding-bottom: 10px; margin-bottom: 20px; }
         h1 { color: #0fbcf9; margin: 0; }
         
-        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
-        .tab-btn { background: #2c3e50; color: #808e9b; border: none; padding: 12px 25px; border-radius: 8px 8px 0 0; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
-        .tab-btn.active { background: #3c40c6; color: white; }
-        .tab-btn:hover:not(.active) { background: #34495e; color: white; }
-        
-        .tab-content { display: none; }
-        .tab-content.active { display: block; }
-
-        .control-panel { background: #2c3e50; padding: 20px; border-radius: 0 10px 10px 10px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; }
-        .control-box { background: #1e272e; padding: 15px; border-radius: 8px; flex: 1; min-width: 300px; }
-        .control-panel input { padding: 8px; font-size: 14px; border-radius: 5px; border: none; margin-bottom: 5px; }
-        
-        .btn-magic { background: #0fbcf9; color: #1e272e; border: none; padding: 8px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+        .control-panel { background: #2c3e50; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
+        .control-panel input { padding: 10px; font-size: 16px; width: 100px; border-radius: 5px; border: none; }
+        .btn-magic { background: #0fbcf9; color: #1e272e; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; }
         .btn-magic:hover { background: #4bcffa; }
 
-        table { width: 100%; border-collapse: collapse; background: #2c3e50; border-radius: 10px; overflow: hidden; margin-top: 20px; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #34495e; }
+        table { width: 100%; border-collapse: collapse; background: #2c3e50; border-radius: 10px; overflow: hidden; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #34495e; }
         th { background: #34495e; color: #0fbcf9; }
         
-        .btn-action { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; font-size: 12px; }
+        .btn-action { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; }
         .btn-pay { background: #05c46b; }
         .btn-fine { background: #ff3f34; }
-        .btn-delete { background: #8e44ad; } 
         .btn-danger { background: #808e9b; } 
         .btn-nuclear { background: #c0392b; } 
         .btn-add { background: #0fbcf9; color: #1e272e; padding: 10px 20px; font-size: 16px; }
-
-        .tarifario-columns { display: flex; gap: 15px; margin-top: 15px; }
-        .tarifario-col { flex: 1; background: #1e272e; padding: 12px; border-radius: 6px; }
-        .col-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #444; text-align: center; }
-            </style>
+    </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-bar">
-        <h1>🏛️ Central Bank (Admin)</h1>
+        <h1>🏛️ RuizCoins Central Bank</h1>
         <button class="btn-action btn-add" onclick="addStudent()">➕ Add Pupil</button>
     </div>
 
-    <div class="admin-tabs">
-        <button class="tab-btn active" id="btn-tab-alumnos" onclick="switchTab('alumnos')">Gestión de Alumnos</button>
-        <button class="tab-btn" id="btn-tab-mercado" onclick="switchTab('mercado')">Tablón y Tarifario</button>
-    </div>
-
-    <div id="tab-alumnos" class="tab-content active">
-        <div class="control-panel">
-            <div class="control-box">
-                <h3>📈 Interés Variable</h3>
-                <input type="number" id="interest-rate" value="5" min="0" max="50" style="width: 60px;"> <b>%</b>
-                <button class="btn-magic" onclick="applyInterest()">Aplicar a todos</button>
-            </div>
-            <div class="control-box" style="border-left: 4px solid #ff3f34;">
-                <h3 style="color: #ff3f34;">🏛️ Cobro de Impuestos (Masivo)</h3>
-                <input type="number" id="mass-amount" placeholder="Cantidad CR" style="width: 90px;">
-                <input type="text" id="mass-concept" placeholder="Ej: Mantenimiento Pupitre" style="width: 150px;">
-                <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
-            </div>
+    <div class="control-panel">
+        <div>
+            <h3>Apply Variable Interest (Vaults)</h3>
+            <p style="font-size: 12px; color: #808e9b;">Sets the percentage of interest for all active vaults.</p>
         </div>
-        <table id="student-list"></table>
-    </div>
-
-    <div id="tab-mercado" class="tab-content">
-        <div style="display: flex; gap: 20px; align-items: flex-start;">
-            <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
-                <h3 style="color: #f1c40f;">📢 Tablón de Anuncios</h3>
-                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
-                    <input type="text" id="nuevoAviso" placeholder="Ej: Mañana..." style="flex: 1; padding: 8px;">
-                    <button class="btn-magic" onclick="publicarAviso()">Publicar</button>
-                </div>
-                <ul id="admin-lista-avisos" style="list-style:none; padding:0;"></ul>
-            </div>
-
-            <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
-                <h3 style="color: #0fbcf9;">🛒 Gestión del Tarifario</h3>
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <input type="text" id="nombreRecurso" placeholder="Concepto" style="flex: 1; padding: 8px;">
-                    <select id="tipoRecurso" style="padding: 8px;"><option value="Gasto">Gasto (-)</option><option value="Ingreso">Ingreso (+)</option></select>
-                    <input type="number" id="valorRecurso" placeholder="CR" style="width: 60px; padding: 8px;">
-                    <label style="font-size: 10px; display:flex; align-items:center;">
-                        <input type="checkbox" id="esComprable" checked> Comprable
-                    </label>
-                    <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
-                    <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
-                </div>
-                <div class="tarifario-columns">
-                    <div class="tarifario-col"><div class="col-title" style="color: #e74c3c;">Gastos (-)</div><ul id="admin-lista-gastos" style="list-style:none; padding:0;"></ul></div>
-                    <div class="tarifario-col"><div class="col-title" style="color: #05c46b;">Ingresos (+)</div><ul id="admin-lista-ingresos" style="list-style:none; padding:0;"></ul></div>
-                </div>
-            </div>
+        <div>
+            <input type="number" id="interest-rate" value="5" min="0" max="50"> <b>%</b>
+            <button class="btn-magic" onclick="applyInterest()">Execute Interest</button>
+            <button class="btn-action btn-danger" style="margin-left: 10px;" onclick="resetEconomy()">⚠️ Reset Economy</button>
+            <button class="btn-action btn-nuclear" style="margin-left: 10px;" onclick="resetPupils()">🗑️ Delete All Pupils</button>
         </div>
     </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Student</th>
+                <th>Role</th>
+                <th>Liquid Balance</th>
+                <th>Vault Savings</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="student-list">
+            </tbody>
+    </table>
 </div>
 
 <script>
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
-    function switchTab(tab) {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-        document.getElementById(`tab-${tab}`).classList.add('active');
-        document.getElementById(`btn-tab-${tab}`).classList.add('active');
+
+    async function loadClass() {
+        const response = await fetch(`${API_BASE_URL}/admin/students`);
+        const students = await response.json();
+        const tbody = document.getElementById('student-list');
+        tbody.innerHTML = '';
+
+        if (students.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #7f8c8d;">No students in the database. Add a pupil to start!</td></tr>`;
+            return;
+        }
+
+        students.forEach(s => {
+            tbody.innerHTML += `
+                <tr>
+                    <td>${s.id_alumno}</td>
+                    <td><b>${s.nombre}</b></td>
+                    <td>${s.cargo}</td>
+                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} RC</td>
+                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} RC</td>
+                    <td>
+                        <button class="btn-action btn-pay" onclick="sendMoney(${s.id_alumno}, '${s.nombre}')">+ Pay</button>
+                        <button class="btn-action btn-fine" onclick="applyFine(${s.id_alumno}, '${s.nombre}')">- Fine</button>
+                    </td>
+                </tr>
+            `;
+        });
     }
 
-    // Funciones base integradas
-    async function cargarCatalogoAdmin() {
-        const res = await fetch(`${API_BASE_URL}/catalogo`);
-        const catalogo = await res.json();
-        const listaGastos = document.getElementById('admin-lista-gastos');
-        const listaIngresos = document.getElementById('admin-lista-ingresos');
-        listaGastos.innerHTML = ''; listaIngresos.innerHTML = '';
+    async function addStudent() {
+        const name = prompt("Enter the new student's name:");
+        if (!name) return;
         
-        catalogo.forEach(c => {
-            const isGasto = c.tipo === 'Gasto';
-            const color = isGasto ? '#e74c3c' : '#05c46b';
-            const signo = isGasto ? '-' : '+';
-            const icono = c.es_comprable ? '🛒' : 'ℹ️';
-            const opacidad = c.es_comprable ? '1' : '0.6';
-            const itemHTML = `<li style="background:#1e272e; padding:8px; margin-bottom:5px; border-radius:5px; opacity:${opacidad}; border-left:3px solid ${color}; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:12px;">${icono} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} CR</span></span>
-                <button class="btn-action btn-nuclear" onclick="borrarRecurso(${c.id})">🗑️</button>
-            </li>`;
-            isGasto ? listaGastos.innerHTML += itemHTML : listaIngresos.innerHTML += itemHTML;
-        });
-    }
+        let role = prompt(`Enter ${name}'s role (Leave blank for 'Student'):`);
+        if (!role) role = "Student"; // Valor por defecto
 
-    async function añadirRecurso() {
-        const concepto = document.getElementById('nombreRecurso').value;
-        const tipo = document.getElementById('tipoRecurso').value;
-        const valor = document.getElementById('valorRecurso').value;
-        const esComprable = document.getElementById('esComprable').checked;
-        await fetch(`${API_BASE_URL}/catalogo`, {
+        await fetch(`${API_BASE_URL}/admin/add-student`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({concepto, tipo, valor: parseInt(valor), es_comprable: esComprable})
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nombre: name, cargo: role })
         });
-        cargarCatalogoAdmin();
+        
+        loadClass(); // Refresca la tabla para que aparezca el nuevo
     }
 
-    async function limpiarDuplicados() {
-        if(confirm("¿Limpiar duplicados del tarifario?")) {
-            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, { method: 'POST' });
-            cargarCatalogoAdmin();
+    async function sendMoney(id, name) {
+        const amount = prompt(`How much to pay ${name}?`);
+        if (!amount) return;
+        const concept = prompt(`Concept (e.g., Salary, Bonus):`);
+        if (!concept) return;
+
+        await fetch(`${API_BASE_URL}/admin/transaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_alumno: id, cantidad: parseFloat(amount), concepto: concept })
+        });
+        loadClass();
+    }
+
+    async function applyFine(id, name) {
+        const amount = prompt(`How much to fine ${name}? (Enter a positive number)`);
+        if (!amount) return;
+        const concept = prompt(`Reason for the fine (e.g., Messy desk):`);
+        if (!concept) return;
+
+        await fetch(`${API_BASE_URL}/admin/transaction`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_alumno: id, cantidad: -parseFloat(amount), concepto: `Fine: ${concept}` })
+        });
+        loadClass();
+    }
+
+    async function applyInterest() {
+        const rateInput = document.getElementById('interest-rate').value;
+        const rateDecimal = parseFloat(rateInput) / 100; 
+
+        if(confirm(`Are you sure you want to apply a ${rateInput}% interest to all savings?`)) {
+            await fetch(`${API_BASE_URL}/admin/apply-interest`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ interest_rate: rateDecimal })
+            });
+            alert('Interest successfully applied to all vaults!');
+            loadClass();
         }
     }
-    
-    // Incluye aquí el resto de funciones (loadClass, publicarAviso, etc) que ya tenías.
-    document.addEventListener('DOMContentLoaded', () => { loadClass(); cargarAvisosAdmin(); cargarCatalogoAdmin(); });
+
+    async function resetEconomy() {
+        if(confirm("⚠️ WARNING: This will set ALL balances to 0 and delete ALL history. Are you sure?")) {
+            if(confirm("Are you ABSOLUTELY sure? There is no undo.")) {
+                await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
+                alert('Economy has been reset for the new term.');
+                loadClass();
+            }
+        }
+    }
+
+    async function resetPupils() {
+        if(confirm("🚨 EXTREME WARNING: This will DELETE all students from the database. Use only for a new school year. Proceed?")) {
+            const passcode = prompt("Type 'DELETE' to confirm:");
+            if(passcode === 'DELETE') {
+                await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
+                alert('All pupils deleted. Database is clean.');
+                loadClass();
+            } else {
+                alert('Action cancelled.');
+            }
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', loadClass);
 </script>
+
 </body>
 </html>
