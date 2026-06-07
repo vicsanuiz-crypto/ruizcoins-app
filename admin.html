@@ -37,13 +37,18 @@
         .btn-danger { background: #808e9b; } 
         .btn-nuclear { background: #c0392b; } 
         .btn-add { background: #0fbcf9; color: #1e272e; padding: 10px 20px; font-size: 16px; }
+
+        /* --- COLUMNAS DEL TARIFARIO --- */
+        .tarifario-columns { display: flex; gap: 15px; margin-top: 15px; }
+        .tarifario-col { flex: 1; background: #1e272e; padding: 12px; border-radius: 6px; }
+        .col-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #444; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-bar">
-        <h1>🏛️ RuizCoins Central Bank</h1>
+        <h1>🏛️ Central Bank (Admin)</h1>
         <button class="btn-action btn-add" onclick="addStudent()">➕ Add Pupil</button>
     </div>
 
@@ -104,7 +109,7 @@
             <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
                 <h3 style="color: #0fbcf9; margin-top: 0;">🛒 Gestión del Tarifario</h3>
                 <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <input type="text" id="nombreRecurso" placeholder="Concepto (Ej: Borrar Pizarra)" style="flex: 1; padding: 8px; border-radius: 4px; border: none; min-width: 120px;">
+                    <input type="text" id="nombreRecurso" placeholder="Concepto (Ej: Lápiz)" style="flex: 1; padding: 8px; border-radius: 4px; border: none; min-width: 120px;">
                     <select id="tipoRecurso" style="padding: 8px; border-radius: 4px; border: none;">
                         <option value="Gasto">Gasto (-)</option>
                         <option value="Ingreso">Ingreso (+)</option>
@@ -112,7 +117,17 @@
                     <input type="number" id="valorRecurso" placeholder="CR" style="width: 70px; padding: 8px; border-radius: 4px; border: none;">
                     <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
                 </div>
-                <ul id="admin-lista-catalogo" style="list-style: none; padding: 0; font-size: 14px;"></ul>
+                
+                <div class="tarifario-columns">
+                    <div class="tarifario-col">
+                        <div class="col-title" style="color: #e74c3c;">Gastos (-)</div>
+                        <ul id="admin-lista-gastos" style="list-style: none; padding: 0; font-size: 13px;"></ul>
+                    </div>
+                    <div class="tarifario-col">
+                        <div class="col-title" style="color: #05c46b;">Ingresos (+)</div>
+                        <ul id="admin-lista-ingresos" style="list-style: none; padding: 0; font-size: 13px;"></ul>
+                    </div>
+                </div>
             </div>
             
         </div>
@@ -123,7 +138,6 @@
 <script>
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
 
-    // --- NAVEGACIÓN PESTAÑAS ADMIN ---
     function switchTab(tab) {
         document.getElementById('tab-alumnos').classList.remove('active');
         document.getElementById('tab-mercado').classList.remove('active');
@@ -134,7 +148,6 @@
         document.getElementById(`btn-tab-${tab}`).classList.add('active');
     }
 
-    // --- GESTIÓN DE ALUMNOS ---
     async function loadClass() {
         const response = await fetch(`${API_BASE_URL}/admin/students`);
         const students = await response.json();
@@ -152,8 +165,8 @@
                     <td>${s.id_alumno}</td>
                     <td><b>${s.nombre}</b></td>
                     <td>${s.cargo}</td>
-                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} CR</td>
-                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} CR</td>
+                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} RC</td>
+                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} RC</td>
                     <td>
                         <button class="btn-action btn-pay" onclick="sendMoney(${s.id_alumno}, '${s.nombre}')">+ Pay</button>
                         <button class="btn-action btn-fine" onclick="applyFine(${s.id_alumno}, '${s.nombre}')">- Fine</button>
@@ -215,8 +228,8 @@
         let concept = document.getElementById('mass-concept').value;
         if(!amount || !concept) return alert("Introduce una cantidad y un motivo.");
         if (type === 'sub') amount = -amount;
-        if(confirm(`Vas a aplicar un movimiento de ${amount} CR a TODA LA CLASE por "${concept}". ¿Continuar?`)) {
-            await fetch(`${API_BASE_URL}/admin/mass-transaction`, {
+        if(confirm(`Vas a aplicar un movimiento de ${amount} RC a TODA LA CLASE por "${concept}". ¿Continuar?`)) {
+            await fetch(`${API_BASE_URL}/mass-transaction`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ cantidad: amount, concepto: concept })
@@ -256,7 +269,6 @@
         }
     }
 
-    // --- FUNCIONES DEL TABLÓN ---
     async function cargarAvisosAdmin() {
         const res = await fetch(`${API_BASE_URL}/avisos`);
         const avisos = await res.json();
@@ -292,23 +304,35 @@
         }
     }
 
-    // --- FUNCIONES DEL TARIFARIO ---
+    // --- FUNCIONES DEL TARIFARIO (SEPARADO EN DOS COLUMNAS) ---
     async function cargarCatalogoAdmin() {
         const res = await fetch(`${API_BASE_URL}/catalogo`);
         const catalogo = await res.json();
-        const lista = document.getElementById('admin-lista-catalogo');
-        lista.innerHTML = '';
+        const listaGastos = document.getElementById('admin-lista-gastos');
+        const listaIngresos = document.getElementById('admin-lista-ingresos');
+        
+        listaGastos.innerHTML = '';
+        listaIngresos.innerHTML = '';
+        
         catalogo.forEach(c => {
             const isGasto = c.tipo === 'Gasto';
             const color = isGasto ? '#e74c3c' : '#05c46b';
             const signo = isGasto ? '-' : '+';
-            lista.innerHTML += `
-                <li style="background: #1e272e; padding: 8px 12px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid ${color};">
-                    <span><b>${c.concepto}</b> <span style="color:${color}; font-weight:bold; margin-left:10px;">${signo}${c.valor} CR</span></span>
-                    <button class="btn-action btn-nuclear" onclick="borrarRecurso(${c.id})" style="padding: 4px 8px; font-size: 10px;">🗑️</button>
+            const itemHTML = `
+                <li style="background: #2c3e50; padding: 6px 10px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; border-left: 3px solid ${color};">
+                    <span style="font-size:12px;"><b>${c.concepto}</b> <br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} CR</span></span>
+                    <button class="btn-action btn-nuclear" onclick="borrarRecurso(${c.id})" style="padding: 2px 6px; font-size: 9px; margin-right:0;">🗑️</button>
                 </li>
             `;
+            if (isGasto) {
+                listaGastos.innerHTML += itemHTML;
+            } else {
+                listaIngresos.innerHTML += itemHTML;
+            }
         });
+
+        if(listaGastos.innerHTML === '') listaGastos.innerHTML = '<p style="font-size:11px; color:gray; text-align:center; padding:10px;">No hay gastos.</p>';
+        if(listaIngresos.innerHTML === '') listaIngresos.innerHTML = '<p style="font-size:11px; color:gray; text-align:center; padding:10px;">No hay ingresos.</p>';
     }
 
     async function añadirRecurso() {
