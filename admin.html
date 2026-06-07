@@ -6,179 +6,341 @@
     <title>RuizCoins - Central Bank</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e272e; color: #d2dae2; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1100px; margin: 0 auto; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #3c40c6; padding-bottom: 10px; margin-bottom: 20px; }
         h1 { color: #0fbcf9; margin: 0; }
-        
-        .control-panel { background: #2c3e50; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; }
-        .control-panel input { padding: 10px; font-size: 16px; width: 100px; border-radius: 5px; border: none; }
-        .btn-magic { background: #0fbcf9; color: #1e272e; border: none; padding: 10px 20px; font-size: 16px; font-weight: bold; border-radius: 5px; cursor: pointer; }
+
+        .admin-tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+        .tab-btn { background: #2c3e50; color: #808e9b; border: none; padding: 12px 25px; border-radius: 8px 8px 0 0; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        .tab-btn.active { background: #3c40c6; color: white; }
+        .tab-btn:hover:not(.active) { background: #34495e; color: white; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .control-panel { background: #2c3e50; padding: 20px; border-radius: 0 10px 10px 10px; margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 20px; justify-content: space-between; }
+        .control-box { background: #1e272e; padding: 15px; border-radius: 8px; flex: 1; min-width: 300px; }
+        .control-panel input { padding: 8px; font-size: 14px; border-radius: 5px; border: none; margin-bottom: 5px; }
+
+        .btn-magic { background: #0fbcf9; color: #1e272e; border: none; padding: 8px 15px; font-weight: bold; border-radius: 5px; cursor: pointer; }
         .btn-magic:hover { background: #4bcffa; }
 
-        table { width: 100%; border-collapse: collapse; background: #2c3e50; border-radius: 10px; overflow: hidden; }
-        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #34495e; }
+        table { width: 100%; border-collapse: collapse; background: #2c3e50; border-radius: 10px; overflow: hidden; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #34495e; }
         th { background: #34495e; color: #0fbcf9; }
-        
-        .btn-action { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; }
+
+        .btn-action { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; font-size: 12px; }
         .btn-pay { background: #05c46b; }
         .btn-fine { background: #ff3f34; }
-        .btn-danger { background: #808e9b; } 
-        .btn-nuclear { background: #c0392b; } 
+        .btn-delete { background: #8e44ad; }
+        .btn-danger { background: #808e9b; }
+        .btn-nuclear { background: #c0392b; }
         .btn-add { background: #0fbcf9; color: #1e272e; padding: 10px 20px; font-size: 16px; }
+
+        .tarifario-columns { display: flex; gap: 15px; margin-top: 15px; }
+        .tarifario-col { flex: 1; background: #1e272e; padding: 12px; border-radius: 6px; }
+        .col-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #444; text-align: center; }
+
+        /* Barra de acciones del tarifario (selección múltiple) */
+        .tarifario-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; flex-wrap: wrap; gap: 8px; }
+        .tarifario-toolbar label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
+        .item-recurso { background: #1e272e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .item-recurso .item-label { display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer; }
+        .item-recurso input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="header-bar">
-        <h1>🏛️ RuizCoins Central Bank</h1>
+        <h1>🏛️ Central Bank (Admin)</h1>
         <button class="btn-action btn-add" onclick="addStudent()">➕ Add Pupil</button>
     </div>
 
-    <div class="control-panel">
-        <div>
-            <h3>Apply Variable Interest (Vaults)</h3>
-            <p style="font-size: 12px; color: #808e9b;">Sets the percentage of interest for all active vaults.</p>
-        </div>
-        <div>
-            <input type="number" id="interest-rate" value="5" min="0" max="50"> <b>%</b>
-            <button class="btn-magic" onclick="applyInterest()">Execute Interest</button>
-            <button class="btn-action btn-danger" style="margin-left: 10px;" onclick="resetEconomy()">⚠️ Reset Economy</button>
-            <button class="btn-action btn-nuclear" style="margin-left: 10px;" onclick="resetPupils()">🗑️ Delete All Pupils</button>
-        </div>
+    <div class="admin-tabs">
+        <button class="tab-btn active" id="btn-tab-alumnos" onclick="switchTab('alumnos')">Gestión de Alumnos</button>
+        <button class="tab-btn" id="btn-tab-mercado" onclick="switchTab('mercado')">Tablón y Tarifario</button>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Student</th>
-                <th>Role</th>
-                <th>Liquid Balance</th>
-                <th>Vault Savings</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody id="student-list">
-            </tbody>
-    </table>
+    <div id="tab-alumnos" class="tab-content active">
+        <div class="control-panel">
+            <div class="control-box">
+                <h3>📈 Interés Variable</h3>
+                <input type="number" id="interest-rate" value="5" min="0" max="50" style="width: 60px;"> <b>%</b>
+                <button class="btn-magic" onclick="applyInterest()">Aplicar a todos</button>
+            </div>
+            <div class="control-box" style="border-left: 4px solid #ff3f34;">
+                <h3 style="color: #ff3f34;">🏛️ Cobro de Impuestos (Masivo)</h3>
+                <input type="number" id="mass-amount" placeholder="Cantidad CR" style="width: 90px;">
+                <input type="text" id="mass-concept" placeholder="Ej: Mantenimiento Pupitre" style="width: 150px;">
+                <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
+            </div>
+        </div>
+        <table id="student-list"></table>
+    </div>
+
+    <div id="tab-mercado" class="tab-content">
+        <div style="display: flex; gap: 20px; align-items: flex-start;">
+            <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
+                <h3 style="color: #f1c40f;">📢 Tablón de Anuncios</h3>
+                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
+                    <input type="text" id="nuevoAviso" placeholder="Ej: Mañana..." style="flex: 1; padding: 8px;">
+                    <button class="btn-magic" onclick="publicarAviso()">Publicar</button>
+                </div>
+                <ul id="admin-lista-avisos" style="list-style:none; padding:0;"></ul>
+            </div>
+
+            <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
+                <h3 style="color: #0fbcf9;">🛒 Gestión del Tarifario</h3>
+                <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <input type="text" id="nombreRecurso" placeholder="Concepto" style="flex: 1; padding: 8px;">
+                    <select id="tipoRecurso" style="padding: 8px;"><option value="Gasto">Gasto (-)</option><option value="Ingreso">Ingreso (+)</option></select>
+                    <input type="number" id="valorRecurso" placeholder="CR" style="width: 60px; padding: 8px;">
+                    <label style="font-size: 10px; display:flex; align-items:center;">
+                        <input type="checkbox" id="esComprable" checked> Comprable
+                    </label>
+                    <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
+                    <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
+                </div>
+
+                <!-- NUEVO: barra de acciones para selección múltiple -->
+                <div class="tarifario-toolbar">
+                    <label><input type="checkbox" id="chk-todos" onclick="toggleSeleccionTodo(this)"> Seleccionar todo</label>
+                    <button class="btn-action btn-nuclear" onclick="borrarSeleccionados()">🗑️ Eliminar seleccionados</button>
+                </div>
+
+                <div class="tarifario-columns">
+                    <div class="tarifario-col"><div class="col-title" style="color: #e74c3c;">Gastos (-)</div><ul id="admin-lista-gastos" style="list-style:none; padding:0;"></ul></div>
+                    <div class="tarifario-col"><div class="col-title" style="color: #05c46b;">Ingresos (+)</div><ul id="admin-lista-ingresos" style="list-style:none; padding:0;"></ul></div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
 
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        document.getElementById(`btn-tab-${tab}`).classList.add('active');
+    }
+
+    // ---------- ALUMNOS ----------
     async function loadClass() {
-        const response = await fetch(`${API_BASE_URL}/admin/students`);
-        const students = await response.json();
-        const tbody = document.getElementById('student-list');
-        tbody.innerHTML = '';
-
-        if (students.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #7f8c8d;">No students in the database. Add a pupil to start!</td></tr>`;
-            return;
-        }
-
+        const res = await fetch(`${API_BASE_URL}/admin/students`);
+        const students = await res.json();
+        const table = document.getElementById('student-list');
+        table.innerHTML = `
+            <tr>
+                <th>ID</th><th>Nombre</th><th>Cargo</th>
+                <th>Saldo</th><th>Caja Fuerte</th><th>Acciones</th>
+            </tr>`;
         students.forEach(s => {
-            tbody.innerHTML += `
+            const nombreEsc = (s.nombre || '').replace(/'/g, "\\'");
+            table.innerHTML += `
                 <tr>
-                    <td>${s.id_alumno}</td>
-                    <td><b>${s.nombre}</b></td>
-                    <td>${s.cargo}</td>
-                    <td style="color: #05c46b;">💰 ${s.balance.toFixed(1)} RC</td>
-                    <td style="color: #9b59b6;">💎 ${s.vault_balance.toFixed(1)} RC</td>
+                    <td><b>${s.id_alumno}</b></td>
+                    <td>${s.nombre}</td>
+                    <td>${s.cargo || '-'}</td>
+                    <td><b>${s.balance.toFixed(1)} CR</b></td>
+                    <td>${s.vault_balance.toFixed(1)} CR</td>
                     <td>
-                        <button class="btn-action btn-pay" onclick="sendMoney(${s.id_alumno}, '${s.nombre}')">+ Pay</button>
-                        <button class="btn-action btn-fine" onclick="applyFine(${s.id_alumno}, '${s.nombre}')">- Fine</button>
+                        <button class="btn-action btn-pay"  onclick="adminTransaction(${s.id_alumno}, 'pay')">+ Pagar</button>
+                        <button class="btn-action btn-fine" onclick="adminTransaction(${s.id_alumno}, 'fine')">- Multar</button>
+                        <button class="btn-action btn-delete" onclick="deleteStudent(${s.id_alumno}, '${nombreEsc}')">🗑️</button>
                     </td>
-                </tr>
-            `;
+                </tr>`;
         });
     }
 
     async function addStudent() {
-        const name = prompt("Enter the new student's name:");
-        if (!name) return;
-        
-        let role = prompt(`Enter ${name}'s role (Leave blank for 'Student'):`);
-        if (!role) role = "Student"; // Valor por defecto
-
+        const nombre = prompt('Nombre del nuevo alumno:');
+        if (!nombre) return;
+        const cargo = prompt('Cargo (opcional):', 'Student') || 'Student';
         await fetch(`${API_BASE_URL}/admin/add-student`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ nombre: name, cargo: role })
-        });
-        
-        loadClass(); // Refresca la tabla para que aparezca el nuevo
-    }
-
-    async function sendMoney(id, name) {
-        const amount = prompt(`How much to pay ${name}?`);
-        if (!amount) return;
-        const concept = prompt(`Concept (e.g., Salary, Bonus):`);
-        if (!concept) return;
-
-        await fetch(`${API_BASE_URL}/admin/transaction`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_alumno: id, cantidad: parseFloat(amount), concepto: concept })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ nombre, cargo })
         });
         loadClass();
     }
 
-    async function applyFine(id, name) {
-        const amount = prompt(`How much to fine ${name}? (Enter a positive number)`);
-        if (!amount) return;
-        const concept = prompt(`Reason for the fine (e.g., Messy desk):`);
-        if (!concept) return;
+    async function adminTransaction(id, mode) {
+        const concepto = prompt(mode === 'pay' ? 'Concepto del pago:' : 'Motivo de la multa:');
+        if (concepto === null) return;
+        const cantidadStr = prompt('¿Cuántos CR?');
+        if (cantidadStr === null) return;
+        let cantidad = parseFloat(cantidadStr);
+        if (isNaN(cantidad) || cantidad <= 0) return alert('Cantidad no válida.');
+        if (mode === 'fine') cantidad = -cantidad;
 
         await fetch(`${API_BASE_URL}/admin/transaction`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_alumno: id, cantidad: -parseFloat(amount), concepto: `Fine: ${concept}` })
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id_alumno: id, cantidad, concepto: concepto || 'Ajuste manual' })
         });
+        loadClass();
+    }
+
+    async function deleteStudent(id, nombre) {
+        if (!confirm(`¿Eliminar a "${nombre}"? Se borrarán también todos sus movimientos.`)) return;
+        await fetch(`${API_BASE_URL}/admin/delete-student/${id}`, { method: 'DELETE' });
         loadClass();
     }
 
     async function applyInterest() {
-        const rateInput = document.getElementById('interest-rate').value;
-        const rateDecimal = parseFloat(rateInput) / 100; 
+        const rate = parseFloat(document.getElementById('interest-rate').value);
+        if (isNaN(rate)) return alert('Introduce un porcentaje válido.');
+        if (!confirm(`¿Aplicar ${rate}% de interés a todas las cajas fuertes?`)) return;
+        await fetch(`${API_BASE_URL}/admin/apply-interest`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            // El backend espera el interés en decimal (5% -> 0.05)
+            body: JSON.stringify({ interest_rate: rate / 100 })
+        });
+        alert('✅ Interés aplicado a las cajas fuertes.');
+    }
 
-        if(confirm(`Are you sure you want to apply a ${rateInput}% interest to all savings?`)) {
-            await fetch(`${API_BASE_URL}/admin/apply-interest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ interest_rate: rateDecimal })
-            });
-            alert('Interest successfully applied to all vaults!');
-            loadClass();
+    async function massTransaction(mode) {
+        const amount = parseFloat(document.getElementById('mass-amount').value);
+        const concepto = document.getElementById('mass-concept').value.trim() || 'Transacción Masiva';
+        if (isNaN(amount) || amount <= 0) return alert('Introduce una cantidad válida.');
+        const cantidad = mode === 'sub' ? -amount : amount;
+        if (!confirm(`¿Aplicar ${cantidad} CR a TODA la clase? (${concepto})`)) return;
+        await fetch(`${API_BASE_URL}/admin/mass-transaction`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ cantidad, concepto })
+        });
+        document.getElementById('mass-amount').value = '';
+        document.getElementById('mass-concept').value = '';
+        loadClass();
+    }
+
+    // ---------- TABLÓN DE AVISOS ----------
+    async function cargarAvisosAdmin() {
+        const res = await fetch(`${API_BASE_URL}/avisos`);
+        const avisos = await res.json();
+        const lista = document.getElementById('admin-lista-avisos');
+        lista.innerHTML = '';
+        if (avisos.length === 0) {
+            lista.innerHTML = '<li style="color:gray; font-size:12px;">No hay avisos publicados.</li>';
+            return;
+        }
+        avisos.forEach(a => {
+            lista.innerHTML += `
+                <li style="background:#1e272e; padding:8px; margin-bottom:5px; border-radius:5px; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:12px;">${a.mensaje}</span>
+                    <button class="btn-action btn-nuclear" onclick="borrarAviso(${a.id})">🗑️</button>
+                </li>`;
+        });
+    }
+
+    async function publicarAviso() {
+        const input = document.getElementById('nuevoAviso');
+        const mensaje = input.value.trim();
+        if (!mensaje) return;
+        await fetch(`${API_BASE_URL}/avisos`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ mensaje })
+        });
+        input.value = '';
+        cargarAvisosAdmin();
+    }
+
+    async function borrarAviso(id) {
+        await fetch(`${API_BASE_URL}/avisos/${id}`, { method: 'DELETE' });
+        cargarAvisosAdmin();
+    }
+
+    // ---------- TARIFARIO ----------
+    async function cargarCatalogoAdmin() {
+        const res = await fetch(`${API_BASE_URL}/catalogo`);
+        const catalogo = await res.json();
+        const listaGastos = document.getElementById('admin-lista-gastos');
+        const listaIngresos = document.getElementById('admin-lista-ingresos');
+        listaGastos.innerHTML = '';
+        listaIngresos.innerHTML = '';
+
+        // Reseteamos el "Seleccionar todo" al recargar
+        const chkTodos = document.getElementById('chk-todos');
+        if (chkTodos) chkTodos.checked = false;
+
+        catalogo.forEach(c => {
+            const isGasto = c.tipo === 'Gasto';
+            const color = isGasto ? '#e74c3c' : '#05c46b';
+            const signo = isGasto ? '-' : '+';
+            const icono = c.es_comprable ? '🛒' : 'ℹ️';
+            // SIN sombreado: ya no atenuamos los conceptos. El icono ℹ️ indica
+            // si es solo informativo (no comprable por el alumno).
+            const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
+                <label class="item-label">
+                    <input type="checkbox" class="chk-recurso" value="${c.id}">
+                    <span style="font-size:12px;">${icono} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} CR</span></span>
+                </label>
+                <button class="btn-action btn-nuclear" onclick="borrarRecurso(${c.id})">🗑️</button>
+            </li>`;
+            if (isGasto) { listaGastos.innerHTML += itemHTML; }
+            else { listaIngresos.innerHTML += itemHTML; }
+        });
+    }
+
+    async function añadirRecurso() {
+        const concepto = document.getElementById('nombreRecurso').value.trim();
+        const tipo = document.getElementById('tipoRecurso').value;
+        const valor = parseFloat(document.getElementById('valorRecurso').value);
+        const esComprable = document.getElementById('esComprable').checked;
+        if (!concepto || isNaN(valor)) return alert('Pon un concepto y un valor válidos.');
+
+        await fetch(`${API_BASE_URL}/catalogo`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable })
+        });
+        document.getElementById('nombreRecurso').value = '';
+        document.getElementById('valorRecurso').value = '';
+        cargarCatalogoAdmin();
+    }
+
+    async function borrarRecurso(id) {
+        await fetch(`${API_BASE_URL}/catalogo/${id}`, { method: 'DELETE' });
+        cargarCatalogoAdmin();
+    }
+
+    // NUEVO: marca/desmarca todas las casillas
+    function toggleSeleccionTodo(source) {
+        document.querySelectorAll('.chk-recurso').forEach(chk => { chk.checked = source.checked; });
+    }
+
+    // NUEVO: borra de golpe todos los conceptos seleccionados
+    async function borrarSeleccionados() {
+        const ids = Array.from(document.querySelectorAll('.chk-recurso:checked')).map(chk => chk.value);
+        if (ids.length === 0) return alert('No has seleccionado ningún concepto.');
+        if (!confirm(`¿Eliminar ${ids.length} concepto(s) seleccionado(s)?`)) return;
+
+        for (const id of ids) {
+            await fetch(`${API_BASE_URL}/catalogo/${id}`, { method: 'DELETE' });
+        }
+        cargarCatalogoAdmin();
+    }
+
+    async function limpiarDuplicados() {
+        if (confirm('¿Limpiar duplicados del tarifario?')) {
+            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, { method: 'POST' });
+            cargarCatalogoAdmin();
         }
     }
 
-    async function resetEconomy() {
-        if(confirm("⚠️ WARNING: This will set ALL balances to 0 and delete ALL history. Are you sure?")) {
-            if(confirm("Are you ABSOLUTELY sure? There is no undo.")) {
-                await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
-                alert('Economy has been reset for the new term.');
-                loadClass();
-            }
-        }
-    }
-
-    async function resetPupils() {
-        if(confirm("🚨 EXTREME WARNING: This will DELETE all students from the database. Use only for a new school year. Proceed?")) {
-            const passcode = prompt("Type 'DELETE' to confirm:");
-            if(passcode === 'DELETE') {
-                await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
-                alert('All pupils deleted. Database is clean.');
-                loadClass();
-            } else {
-                alert('Action cancelled.');
-            }
-        }
-    }
-
-    document.addEventListener('DOMContentLoaded', loadClass);
+    // ---------- ARRANQUE ----------
+    document.addEventListener('DOMContentLoaded', () => {
+        loadClass();
+        cargarAvisosAdmin();
+        cargarCatalogoAdmin();
+    });
 </script>
-
 </body>
 </html>
