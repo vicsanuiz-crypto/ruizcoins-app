@@ -9,8 +9,9 @@
     <style>
         :root { --bg-color: #f0f4f8; --primary-green: #2ecc71; --primary-red: #e74c3c; --primary-blue: #3498db; --text-dark: #2c3e50; }
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); color: var(--text-dark); display: flex; justify-content: center; padding: 20px; }
-        .pwa-container { width: 100%; max-width: 400px; background: var(--bg-color); min-height: 800px; position: relative; overflow: hidden; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); color: var(--text-dark); display: flex; justify-content: center; height: 100vh; overflow: hidden; }
+        
+        .pwa-container { width: 100%; max-width: 400px; background: var(--bg-color); height: 100%; position: relative; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
         
         /* --- PANTALLA DE LOGIN --- */
         #login-screen { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #1e272e; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; transition: transform 0.5s ease-in-out; }
@@ -19,27 +20,25 @@
         .login-box { background: #2c3e50; padding: 30px; border-radius: 20px; text-align: center; width: 80%; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
         .login-box input { width: 100%; padding: 15px; font-size: 24px; text-align: center; border-radius: 10px; border: 2px solid #3c40c6; margin-bottom: 20px; background: #1e272e; color: white; outline: none; }
         .btn-login { background: #0fbcf9; color: #1e272e; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; }
-        .btn-login:hover { background: #4bcffa; }
+        
         #login-error { color: #ff3f34; margin-top: 15px; font-weight: bold; display: none; }
 
-        /* --- DASHBOARD PRINCIPAL --- */
-        #dashboard-content { display: none; /* Oculto hasta que hagan login */ }
-        header { display: flex; justify-content: space-between; margin-bottom: 25px; padding-top: 10px; }
+        /* --- CONTENEDOR PRINCIPAL --- */
+        #app-content { display: none; flex-direction: column; height: 100%; }
+        .scrollable-area { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 80px; }
+
+        /* --- CABECERA --- */
+        header { display: flex; justify-content: space-between; margin-bottom: 25px; align-items: center; }
         .profile { display: flex; align-items: center; gap: 12px; }
         .avatar { width: 50px; height: 50px; background: #ddd; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; border: 2px solid white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .user-info h2 { font-size: 18px; }
         .user-info p { font-size: 12px; color: #7f8c8d; text-transform: uppercase; }
         .btn-logout { background: transparent; border: none; font-size: 20px; color: #e74c3c; cursor: pointer; }
 
+        /* --- VISTA INICIO (DASHBOARD) --- */
         .balance-card { background: white; padding: 30px; border-radius: 24px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.05); margin-bottom: 20px; }
         .balance-card span { font-size: 14px; color: #95a5a6; font-weight: 600; }
         .balance-card h1 { font-size: 48px; color: var(--text-dark); margin-top: 5px; }
-
-        .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .btn-action { padding: 20px; border-radius: 20px; border: none; color: white; font-weight: bold; font-size: 16px; cursor: pointer; transition: transform 0.2s; }
-        .btn-action:active { transform: scale(0.95); }
-        .btn-earn { background-color: var(--primary-green); }
-        .btn-market { background-color: var(--primary-red); }
 
         .vault-card { background: linear-gradient(135deg, #8e44ad, #9b59b6); padding: 25px; border-radius: 24px; color: white; margin-bottom: 25px; box-shadow: 0 8px 15px rgba(155, 89, 182, 0.3); }
         .vault-header { display: flex; justify-content: space-between; margin-bottom: 15px; }
@@ -48,6 +47,11 @@
         .vault-controls { display: flex; gap: 10px; }
         .btn-vault { flex: 1; padding: 10px; border-radius: 12px; border: none; background: white; color: #8e44ad; font-weight: bold; cursor: pointer; }
 
+        .avisos-box { background: #ffeaa7; padding: 15px; border-radius: 15px; margin-bottom: 20px; border-left: 5px solid #fdcb6e; }
+        .avisos-box h3 { font-size: 14px; margin-bottom: 10px; color: #d63031; }
+        .avisos-box ul { list-style: none; font-size: 13px; color: #2d3436; }
+        .avisos-box li { margin-bottom: 8px; border-bottom: 1px dashed #fdcb6e; padding-bottom: 5px; }
+
         .history h3 { font-size: 16px; margin-bottom: 15px; color: #7f8c8d; }
         .transaction { background: white; padding: 15px; border-radius: 15px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .tx-info { display: flex; gap: 12px; }
@@ -55,17 +59,27 @@
         .amount.plus { color: var(--primary-green); font-weight: bold;}
         .amount.minus { color: var(--primary-red); font-weight: bold;}
 
-        /* --- MARKET MODAL --- */
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 100; align-items: flex-end; justify-content: center; }
-        .modal-content { background: white; width: 100%; max-width: 400px; padding: 25px; border-radius: 25px 25px 0 0; animation: slideUp 0.3s; }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .close-btn { font-size: 24px; cursor: pointer; color: #7f8c8d; }
-        .market-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 2px solid #ecf0f1; border-radius: 15px; margin-bottom: 10px; }
-        .market-item:hover { border-color: var(--primary-red); }
-        .item-info h4 { margin-bottom: 5px; }
+        /* --- VISTA MERCADO (TARIFARIO) --- */
+        #tab-market { display: none; }
+        .market-header { text-align: center; margin-bottom: 20px; }
+        .market-header h2 { color: #2c3e50; }
+        .market-header p { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
+        
+        .market-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border: 2px solid white; background: white; border-radius: 15px; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); transition: 0.2s; }
+        .market-item.gasto { border-left: 5px solid var(--primary-red); }
+        .market-item.ingreso { border-left: 5px solid var(--primary-green); }
+        .item-info h4 { margin-bottom: 5px; color: #2c3e50; }
         .item-info p { font-size: 12px; color: #7f8c8d; }
+        
         .btn-buy { background: var(--primary-red); color: white; border: none; padding: 8px 15px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        .badge-earn { background: #e8f8f5; color: var(--primary-green); padding: 8px 15px; border-radius: 10px; font-weight: bold; font-size: 14px; }
+
+        /* --- BARRA DE NAVEGACIÓN INFERIOR --- */
+        .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #eee; border-radius: 20px 20px 0 0; z-index: 100; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
+        .nav-item { color: #bdc3c7; text-align: center; cursor: pointer; transition: 0.3s; width: 50%; }
+        .nav-item i { font-size: 20px; margin-bottom: 5px; display: block; }
+        .nav-item span { font-size: 12px; font-weight: bold; }
+        .nav-item.active { color: #3498db; }
     </style>
 </head>
 <body>
@@ -74,192 +88,169 @@
     
     <div id="login-screen">
         <h1>🏛️ RuizCoins</h1>
-        <p>Student Digital Bank</p>
+        <p>Banco Estudiantil</p>
         <div class="login-box">
-            <input type="number" id="login-id" placeholder="Access ID" min="1">
-            <button class="btn-login" onclick="attemptLogin()">Enter Bank</button>
-            <p id="login-error">❌ ID not found</p>
+            <input type="number" id="login-id" placeholder="Tu ID Secreto" min="1">
+            <button class="btn-login" onclick="attemptLogin()">Entrar</button>
+            <p id="login-error">❌ ID no encontrado</p>
         </div>
     </div>
 
-    <div id="dashboard-content">
-        <header>
-            <div class="profile">
-                <div class="avatar">👨‍💻</div>
-                <div class="user-info">
-                    <h2 id="student-name">...</h2>
-                    <p id="student-role">...</p>
+    <div id="app-content">
+        
+        <div class="scrollable-area">
+            <header>
+                <div class="profile">
+                    <div class="avatar">👨‍💻</div>
+                    <div class="user-info">
+                        <h2 id="student-name">...</h2>
+                        <p id="student-role">...</p>
+                    </div>
                 </div>
+                <button class="btn-logout" onclick="logout()" title="Cerrar Sesión"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </header>
+
+            <div id="tab-home">
+                <div class="avisos-box" id="cajaAvisos" style="display:none;">
+                    <h3><i class="fa-solid fa-bullhorn"></i> Novedades</h3>
+                    <ul id="listaAvisos"></ul>
+                </div>
+
+                <div class="balance-card">
+                    <span>Cuenta Corriente</span>
+                    <h1 id="main-balance">💰 0.0 CR</h1>
+                </div>
+
+                <div class="vault-card">
+                    <div class="vault-header">
+                        <h3><i class="fa-solid fa-vault"></i> Caja Fuerte</h3>
+                    </div>
+                    <div class="vault-balance" id="vault-balance">💎 0.0 CR</div>
+                    <p class="vault-projection" id="vault-projection">Loading...</p>
+                    <div class="vault-controls">
+                        <button class="btn-vault" id="btn-deposit"><i class="fa-solid fa-arrow-up"></i> Ingresar</button>
+                        <button class="btn-vault" id="btn-withdraw"><i class="fa-solid fa-arrow-down"></i> Retirar</button>
+                    </div>
+                </div>
+
+                <div class="history" id="history-container"><h3>Movimientos</h3></div>
             </div>
-            <button class="btn-logout" onclick="logout()" title="Log Out"><i class="fa-solid fa-right-from-bracket"></i></button>
-        </header>
 
-        <div class="balance-card">
-            <span>Current Balance</span>
-            <h1 id="main-balance">💰 0.0 RC</h1>
-        </div>
-
-<!-- PANELES NUEVOS -->
-<div id="seccionNovedades" style="display:none; margin-top: 30px;">
-    <h3>📢 Tablón del Banco Central</h3>
-    <ul id="listaAvisos" style="background:#f9f9f9; padding:15px; border-radius:5px; text-align: left; margin-bottom: 20px;"></ul>
-    
-    <h3>🛒 Tarifario del Aula</h3>
-    <table border="1" width="100%" style="border-collapse: collapse; text-align: left; background: white;">
-        <thead style="background: #eee;">
-            <tr>
-                <th style="padding: 8px;">Concepto</th>
-                <th style="padding: 8px;">Tipo</th>
-                <th style="padding: 8px;">Valor</th>
-            </tr>
-        </thead>
-        <tbody id="tablaCatalogo"></tbody>
-    </table>
-</div>
-        
-        <div class="actions-grid">
-            <button class="btn-action btn-earn"><i class="fa-solid fa-rocket"></i><br>Earn</button>
-            <button class="btn-action btn-market" onclick="document.getElementById('marketModal').style.display='flex'">
-                <i class="fa-solid fa-cart-shopping"></i><br>Market
-            </button>
-        </div>
-
-        <div class="vault-card">
-            <div class="vault-header">
-                <h3><i class="fa-solid fa-vault"></i> Personal Vault</h3>
-            </div>
-            <div class="vault-balance" id="vault-balance">💎 0.0 RC</div>
-            <p class="vault-projection" id="vault-projection">Loading...</p>
-            <div class="vault-controls">
-                <button class="btn-vault" id="btn-deposit"><i class="fa-solid fa-arrow-up"></i> Deposit</button>
-                <button class="btn-vault" id="btn-withdraw"><i class="fa-solid fa-arrow-down"></i> Withdraw</button>
+            <div id="tab-market">
+                <div class="market-header">
+                    <h2>🛒 Tarifario del Aula</h2>
+                    <p>Compra privilegios o consulta cómo ganar CR.</p>
+                </div>
+                <div id="catalogo-grid">
+                    </div>
             </div>
         </div>
 
-        <div class="history" id="history-container"><h3>Activity</h3></div>
-    </div>
-</div>
-
-<div id="marketModal" class="modal">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h2>🛒 Rewards Market</h2>
-            <span class="close-btn" onclick="document.getElementById('marketModal').style.display='none'">&times;</span>
-        </div>
-        
-        <div class="market-item">
-            <div class="item-info">
-                <h4>🪑 Choose Seat</h4>
-                <p>Pick your seat for the day.</p>
+        <nav class="bottom-nav">
+            <div class="nav-item active" id="nav-home" onclick="switchTab('home')">
+                <i class="fa-solid fa-house"></i>
+                <span>Inicio</span>
             </div>
-            <button class="btn-buy" onclick="buyItem('Choose Seat', 10)">10 RC</button>
-        </div>
-
-        <div class="market-item">
-            <div class="item-info">
-                <h4>🎧 Music Pass</h4>
-                <p>Listen to music for 30 mins.</p>
+            <div class="nav-item" id="nav-market" onclick="switchTab('market')">
+                <i class="fa-solid fa-cart-shopping"></i>
+                <span>Mercado</span>
             </div>
-            <button class="btn-buy" onclick="buyItem('Music Pass', 15)">15 RC</button>
-        </div>
+        </nav>
 
-        <div class="market-item">
-            <div class="item-info">
-                <h4>📝 No Homework</h4>
-                <p>Skip one daily assignment.</p>
-            </div>
-            <button class="btn-buy" onclick="buyItem('Homework Exemption', 50)">50 RC</button>
-        </div>
     </div>
 </div>
 
 <script>
-    let currentStudentID = null; // Ya no es fijo, empieza vacío
+    let currentStudentID = null;
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
+
+    // --- NAVEGACIÓN DE PESTAÑAS ---
+    function switchTab(tab) {
+        document.getElementById('tab-home').style.display = tab === 'home' ? 'block' : 'none';
+        document.getElementById('tab-market').style.display = tab === 'market' ? 'block' : 'none';
+        
+        document.getElementById('nav-home').classList.toggle('active', tab === 'home');
+        document.getElementById('nav-market').classList.toggle('active', tab === 'market');
+    }
 
     // --- SISTEMA DE LOGIN ---
     async function attemptLogin() {
         const inputId = document.getElementById('login-id').value;
         const errorMsg = document.getElementById('login-error');
-        
         if (!inputId) return;
 
         try {
             const response = await fetch(`${API_BASE_URL}/student/${inputId}`);
             if (response.ok) {
-                // Login correcto
                 currentStudentID = inputId;
                 errorMsg.style.display = 'none';
-                
-                // Animación de subida de la pantalla de login
                 document.getElementById('login-screen').style.transform = 'translateY(-100%)';
                 
-                // Mostrar y cargar datos
-        setTimeout(() => {
-            document.getElementById('dashboard-content').style.display = 'block';
-            document.getElementById('seccionNovedades').style.display = 'block';
-            loadStudentData();
-            cargarAvisos();
-            cargarCatalogo();
-        }, 300); // Esperar a que termine la animación
-                
+                setTimeout(() => {
+                    document.getElementById('app-content').style.display = 'flex';
+                    loadStudentData();
+                    cargarAvisos();
+                    cargarCatalogo();
+                }, 300);
             } else {
-                // ID no existe
                 errorMsg.style.display = 'block';
             }
         } catch (error) {
-            alert('Error connecting to the bank server.');
+            alert('Error conectando con el servidor del banco.');
         }
     }
 
     function logout() {
         currentStudentID = null;
         document.getElementById('login-id').value = '';
-        document.getElementById('dashboard-content').style.display = 'none';
+        document.getElementById('app-content').style.display = 'none';
         document.getElementById('login-screen').style.transform = 'translateY(0)';
+        switchTab('home'); // Resetear a la pestaña inicial
     }
 
-    // Permitir hacer login pulsando "Enter"
     document.getElementById('login-id').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') attemptLogin();
     });
 
-    // --- CARGA DE DATOS (Usando el ID actual) ---
+    // --- CARGA DE DATOS ---
     async function loadStudentData() {
         if (!currentStudentID) return;
-
         const response = await fetch(`${API_BASE_URL}/student/${currentStudentID}`);
         const data = await response.json();
         
         document.getElementById('student-name').innerText = data.name;
         document.getElementById('student-role').innerText = data.role;
-        document.getElementById('main-balance').innerText = `💰 ${data.balance.toFixed(1)} RC`;
-        document.getElementById('vault-balance').innerText = `💎 ${data.vault_balance.toFixed(1)} RC`;
+        document.getElementById('main-balance').innerText = `💰 ${data.balance.toFixed(1)} CR`;
+        document.getElementById('vault-balance').innerText = `💎 ${data.vault_balance.toFixed(1)} CR`;
         
         const projected = data.vault_balance * 1.05;
-        document.getElementById('vault-projection').innerHTML = `Next month: <b>${projected.toFixed(1)} RC</b> (at 5%)`;
+        document.getElementById('vault-projection').innerHTML = `Próximo mes: <b>${projected.toFixed(1)} CR</b> (al 5%)`;
 
         const historyContainer = document.getElementById('history-container');
-        historyContainer.innerHTML = '<h3>Activity</h3>';
-        data.history.forEach(tx => {
-            const isIncome = tx.cantidad > 0;
-            historyContainer.innerHTML += `
-                <div class="transaction">
-                    <div class="tx-info">
-                        <div class="tx-icon" style="background: ${isIncome ? '#e8f8f5' : '#fdedec'}; color: ${isIncome ? '#2ecc71' : '#e74c3c'};">
-                            <i class="fa-solid ${tx.tipo === 'vault' ? 'fa-vault' : 'fa-receipt'}"></i>
+        historyContainer.innerHTML = '<h3>Últimos Movimientos</h3>';
+        if (data.history.length === 0) {
+            historyContainer.innerHTML += '<p style="color:gray; font-size:12px;">No hay movimientos aún.</p>';
+        } else {
+            data.history.forEach(tx => {
+                const isIncome = tx.cantidad > 0;
+                historyContainer.innerHTML += `
+                    <div class="transaction">
+                        <div class="tx-info">
+                            <div class="tx-icon" style="background: ${isIncome ? '#e8f8f5' : '#fdedec'}; color: ${isIncome ? '#2ecc71' : '#e74c3c'};">
+                                <i class="fa-solid ${tx.tipo === 'vault' ? 'fa-vault' : 'fa-receipt'}"></i>
+                            </div>
+                            <div style="font-size: 14px;"><b>${tx.concepto}</b><br><span style="font-size: 11px; color: gray;">${tx.fecha}</span></div>
                         </div>
-                        <div style="font-size: 14px;"><b>${tx.concepto}</b><br><span style="font-size: 11px; color: gray;">${tx.fecha}</span></div>
-                    </div>
-                    <div class="amount ${isIncome ? 'plus' : 'minus'}">${isIncome ? '+' : ''}${tx.cantidad.toFixed(1)}</div>
-                </div>`;
-        });
+                        <div class="amount ${isIncome ? 'plus' : 'minus'}">${isIncome ? '+' : ''}${tx.cantidad.toFixed(1)}</div>
+                    </div>`;
+            });
+        }
     }
 
-    // --- OPERACIONES DE CAJA Y MERCADO ---
+    // --- CAJA FUERTE ---
     async function handleVaultAction(action) {
         if (!currentStudentID) return;
-        const amount = parseFloat(prompt(`How many RuizCoins do you want to ${action}?`));
+        const amount = parseFloat(prompt(`¿Cuántos CR quieres ${action === 'deposit' ? 'ingresar' : 'retirar'}?`));
         if (!amount || amount <= 0) return;
 
         const endpoint = action === 'deposit' ? '/vault/deposit' : '/vault/withdraw';
@@ -269,12 +260,68 @@
             body: JSON.stringify({ id_alumno: currentStudentID, cantidad: amount })
         });
         const result = await response.json();
-        response.ok ? loadStudentData() : alert(result.error);
+        if(response.ok) {
+            loadStudentData();
+        } else {
+            alert("Error: " + result.error);
+        }
     }
 
-    async function buyItem(itemName, price) {
+    // --- AVISOS Y CATÁLOGO DINÁMICO ---
+    async function cargarAvisos() {
+        const res = await fetch(`${API_BASE_URL}/avisos`);
+        const avisos = await res.json();
+        const lista = document.getElementById('listaAvisos');
+        const caja = document.getElementById('cajaAvisos');
+        
+        if(avisos.length > 0) {
+            caja.style.display = 'block';
+            lista.innerHTML = '';
+            // Mostrar solo los 3 avisos más recientes para no saturar
+            avisos.slice(0, 3).forEach(a => {
+                const fechaCorta = new Date(a.fecha).toLocaleDateString();
+                lista.innerHTML += `<li><strong>[${fechaCorta}]</strong> ${a.mensaje}</li>`;
+            });
+        } else {
+            caja.style.display = 'none';
+        }
+    }
+
+    async function cargarCatalogo() {
+        const res = await fetch(`${API_BASE_URL}/catalogo`);
+        const catalogo = await res.json();
+        const grid = document.getElementById('catalogo-grid');
+        grid.innerHTML = '';
+        
+        catalogo.forEach(c => {
+            if (c.tipo === 'Gasto') {
+                // Es algo que pueden comprar
+                grid.innerHTML += `
+                    <div class="market-item gasto">
+                        <div class="item-info">
+                            <h4>🛒 ${c.concepto}</h4>
+                            <p>Descuenta saldo de tu cuenta corriente.</p>
+                        </div>
+                        <button class="btn-buy" onclick="comprarArticulo('${c.concepto}', ${c.valor})">Comprar ${c.valor} CR</button>
+                    </div>`;
+            } else {
+                // Es un ingreso (información de tareas)
+                grid.innerHTML += `
+                    <div class="market-item ingreso">
+                        <div class="item-info">
+                            <h4>⭐ ${c.concepto}</h4>
+                            <p>Tarea recompensada por el maestro.</p>
+                        </div>
+                        <div class="badge-earn">+${c.valor} CR</div>
+                    </div>`;
+            }
+        });
+    }
+
+    // --- COMPRAR EN EL MERCADO ---
+    async function comprarArticulo(itemName, price) {
         if (!currentStudentID) return;
-        if(confirm(`Do you want to buy "${itemName}" for ${price} RC?`)) {
+        if(confirm(`¿Confirmas la compra de "${itemName}" por ${price} CR?`)) {
             const response = await fetch(`${API_BASE_URL}/market/buy`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -283,49 +330,21 @@
             const result = await response.json();
             
             if (response.ok) {
-                alert(`🎉 You bought: ${itemName}! Enjoy!`);
-                document.getElementById('marketModal').style.display='none';
-                loadStudentData(); 
+                alert(`¡Compra realizada: ${itemName}!`);
+                loadStudentData(); // Actualiza el saldo y el historial
+                switchTab('home'); // Lo devuelve a la pantalla principal para que vea el movimiento
             } else {
-                alert(`❌ Error: ${result.error}`); 
+                alert(`❌ Error: No tienes saldo suficiente.`); 
             }
         }
     }
 
-    // Event Listeners iniciales
+    // Event Listeners
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btn-deposit').addEventListener('click', () => handleVaultAction('deposit'));
         document.getElementById('btn-withdraw').addEventListener('click', () => handleVaultAction('withdraw'));
     });
-async function cargarAvisos() {
-    const res = await fetch(`${API_BASE_URL}/avisos`);
-    const avisos = await res.json();
-    const lista = document.getElementById('listaAvisos');
-    lista.innerHTML = '';
-    avisos.forEach(a => {
-        // Cortamos la fecha para que se vea bonita (Día/Mes/Año)
-        const fechaCorta = new Date(a.fecha).toLocaleDateString();
-        lista.innerHTML += `<li style="margin-bottom: 5px;"><strong>[${fechaCorta}]</strong>: ${a.mensaje}</li>`;
-    });
-}
-
-async function cargarCatalogo() {
-    const res = await fetch(`${API_BASE_URL}/catalogo`);
-    const catalogo = await res.json();
-    const tabla = document.getElementById('tablaCatalogo');
-    tabla.innerHTML = '';
-    catalogo.forEach(c => {
-        const color = c.tipo === 'Gasto' ? 'red' : 'green';
-        const signo = c.tipo === 'Gasto' ? '-' : '+';
-        tabla.innerHTML += `
-            <tr>
-                <td style="padding: 8px;">${c.concepto}</td>
-                <td style="padding: 8px; color: ${color}; font-weight: bold;">${c.tipo}</td>
-                <td style="padding: 8px; color: ${color}; font-weight: bold;">${signo}${c.valor} CR</td>
-            </tr>`;
-    });
-}
-    
 </script>
+
 </body>
 </html>
