@@ -96,11 +96,14 @@
                 <input type="number" id="interest-rate" value="5" min="0" max="50" style="width: 60px;"> <b>%</b>
                 <button class="btn-magic" onclick="applyInterest()">Aplicar a todos</button>
             </div>
-            <div class="control-box" style="border-left: 4px solid #ff3f34;">
-                <h3 style="color: #ff3f34;">🏛️ Cobro de Impuestos (Masivo)</h3>
+            <div class="control-box" style="border-left: 4px solid #05c46b;">
+                <h3>🏛️ Transacción Masiva (toda la clase)</h3>
                 <input type="number" id="mass-amount" placeholder="Cantidad CR" style="width: 90px;">
-                <input type="text" id="mass-concept" placeholder="Ej: Mantenimiento Pupitre" style="width: 150px;">
-                <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
+                <input type="text" id="mass-concept" placeholder="Ej: Premio / Impuesto" style="width: 150px;">
+                <div style="margin-top: 6px;">
+                    <button class="btn-magic" style="background: #05c46b;" onclick="massTransaction('add')">+ Pagar a la clase</button>
+                    <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
+                </div>
             </div>
             <div class="control-box" style="border-left: 4px solid #c0392b;">
                 <h3 style="color: #c0392b;">⚠️ Reinicio</h3>
