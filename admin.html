@@ -92,13 +92,18 @@
     <div id="tab-alumnos" class="tab-content active">
         <div class="control-panel">
             <div class="control-box">
-                <h3>📈 Interés Variable</h3>
-                <input type="number" id="interest-rate" value="5" min="0" max="50" style="width: 60px;"> <b>%</b>
-                <button class="btn-magic" onclick="applyInterest()">Aplicar a todos</button>
+                <h3>📈 Interés Caja Fuerte</h3>
+                <input type="number" id="interest-rate" value="5" min="0" max="50" style="width: 55px;"> <b>%</b>
+                <select id="interest-period" style="padding: 7px; border-radius: 5px; border: none;">
+                    <option value="mes">al mes</option>
+                    <option value="semana_mes">por semana (como mes)</option>
+                    <option value="semana">por semana (proporcional)</option>
+                </select>
+                <button class="btn-magic" onclick="applyInterest()" style="margin-top: 6px;">Aplicar a todos</button>
             </div>
             <div class="control-box" style="border-left: 4px solid #05c46b;">
                 <h3>🏛️ Transacción Masiva (toda la clase)</h3>
-                <input type="number" id="mass-amount" placeholder="Cantidad CR" style="width: 90px;">
+                <input type="number" id="mass-amount" placeholder="Cantidad RC" style="width: 90px;">
                 <input type="text" id="mass-concept" placeholder="Ej: Premio / Impuesto" style="width: 150px;">
                 <div style="margin-top: 6px;">
                     <button class="btn-magic" style="background: #05c46b;" onclick="massTransaction('add')">+ Pagar a la clase</button>
@@ -137,7 +142,7 @@
                 <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
                     <input type="text" id="nombreRecurso" placeholder="Concepto" style="flex: 1; padding: 8px;">
                     <select id="tipoRecurso" style="padding: 8px;"><option value="Gasto">Gasto (-)</option><option value="Ingreso">Ingreso (+)</option></select>
-                    <input type="number" id="valorRecurso" placeholder="CR" style="width: 60px; padding: 8px;">
+                    <input type="number" id="valorRecurso" placeholder="RC" style="width: 60px; padding: 8px;">
                     <label style="font-size: 10px; display:flex; align-items:center;">
                         <input type="checkbox" id="esComprable" checked> Comprable
                     </label>
@@ -201,8 +206,8 @@
                     <td><span class="drag-handle">⠿</span><b>${s.id_alumno}</b></td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
-                    <td><b>${s.balance.toFixed(1)} CR</b></td>
-                    <td>${s.vault_balance.toFixed(1)} CR</td>
+                    <td><b>${s.balance.toFixed(1)} RC</b></td>
+                    <td>${s.vault_balance.toFixed(1)} RC</td>
                     <td>
                         <button class="btn-action btn-pay"  onclick="adminTransaction(${s.id_alumno}, 'pay')">+ Pagar</button>
                         <button class="btn-action btn-fine" onclick="adminTransaction(${s.id_alumno}, 'fine')">- Multar</button>
@@ -228,7 +233,7 @@
     async function adminTransaction(id, mode) {
         const concepto = prompt(mode === 'pay' ? 'Concepto del pago:' : 'Motivo de la multa:');
         if (concepto === null) return;
-        const cantidadStr = prompt('¿Cuántos CR?');
+        const cantidadStr = prompt('¿Cuántos RC?');
         if (cantidadStr === null) return;
         let cantidad = parseFloat(cantidadStr);
         if (isNaN(cantidad) || cantidad <= 0) return alert('Cantidad no válida.');
@@ -270,15 +275,37 @@
 
     async function applyInterest() {
         const rate = parseFloat(document.getElementById('interest-rate').value);
+        const periodo = document.getElementById('interest-period').value;
         if (isNaN(rate)) return alert('Introduce un porcentaje válido.');
-        if (!confirm(`¿Aplicar ${rate}% de interés a todas las cajas fuertes?`)) return;
+
+        // Factor según periodo (solo 'semana' es proporcional, ¼)
+        const factor = periodo === 'semana' ? 0.25 : 1;
+        const etiqueta = periodo === 'mes' ? 'una vez al mes'
+                        : periodo === 'semana_mes' ? 'cada semana (como un mes)'
+                        : 'cada semana (proporcional)';
+        const efectivo = (rate * factor);
+        if (!confirm(`¿Aplicar ${efectivo}% de interés ${etiqueta} a todas las cajas fuertes?`)) return;
+
         await fetch(`${API_BASE_URL}/admin/apply-interest`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            // El backend espera el interés en decimal (5% -> 0.05)
-            body: JSON.stringify({ interest_rate: rate / 100 })
+            // El backend espera el interés base en decimal (5% -> 0.05) y aplica el factor del periodo
+            body: JSON.stringify({ interest_rate: rate / 100, periodo })
         });
-        alert('✅ Interés aplicado a las cajas fuertes.');
+        alert(`✅ Interés aplicado (${efectivo}% ${etiqueta}).`);
+    }
+
+    // Carga el ajuste de interés guardado para dejar el selector como estaba
+    async function cargarConfig() {
+        try {
+            const cfg = await (await fetch(`${API_BASE_URL}/config`)).json();
+            if (cfg.interes_rate) {
+                document.getElementById('interest-rate').value = Math.round(parseFloat(cfg.interes_rate) * 10000) / 100;
+            }
+            if (cfg.interes_periodo) {
+                document.getElementById('interest-period').value = cfg.interes_periodo;
+            }
+        } catch (e) {}
     }
 
     async function massTransaction(mode) {
@@ -286,7 +313,7 @@
         const concepto = document.getElementById('mass-concept').value.trim() || 'Transacción Masiva';
         if (isNaN(amount) || amount <= 0) return alert('Introduce una cantidad válida.');
         const cantidad = mode === 'sub' ? -amount : amount;
-        if (!confirm(`¿Aplicar ${cantidad} CR a TODA la clase? (${concepto})`)) return;
+        if (!confirm(`¿Aplicar ${cantidad} RC a TODA la clase? (${concepto})`)) return;
         await fetch(`${API_BASE_URL}/admin/mass-transaction`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -380,7 +407,7 @@
             const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
                 <label class="item-label">
                     <input type="checkbox" class="chk-recurso" value="${c.id}">
-                    <span style="font-size:12px;">${icono} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} CR</span></span>
+                    <span style="font-size:12px;">${icono} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} RC</span></span>
                 </label>
                 <div class="item-acciones">
                     ${btnToggle}
@@ -430,7 +457,7 @@
     async function editarRecurso(id, conceptoActual, valorActual) {
         const concepto = prompt('Concepto:', conceptoActual);
         if (concepto === null) return; // canceló
-        const valorStr = prompt('Valor (CR):', valorActual);
+        const valorStr = prompt('Valor (RC):', valorActual);
         if (valorStr === null) return; // canceló
         const valor = parseFloat(valorStr);
         if (!concepto.trim() || isNaN(valor)) return alert('Concepto o valor no válidos.');
@@ -514,7 +541,7 @@
             alert('No había recurrentes pendientes para hoy. ✅');
         } else {
             const lista = aplicados
-                .map(a => `• ${a.concepto} (${a.tipo === 'Gasto' ? '-' : '+'}${a.valor} CR · ${a.frecuencia})`)
+                .map(a => `• ${a.concepto} (${a.tipo === 'Gasto' ? '-' : '+'}${a.valor} RC · ${a.frecuencia})`)
                 .join('\n');
             alert(`Aplicado a ${data.total_alumnos} alumno(s):\n\n${lista}`);
         }
@@ -540,7 +567,7 @@
             const plus = tx.cantidad > 0;
             return `<div class="hist-row">
                 <span><b>${tx.concepto}</b><br><span style="font-size:11px; color:#808e9b;">${tx.fecha}</span></span>
-                <span class="hist-amount ${plus ? 'plus' : 'minus'}">${plus ? '+' : ''}${tx.cantidad.toFixed(1)} CR</span>
+                <span class="hist-amount ${plus ? 'plus' : 'minus'}">${plus ? '+' : ''}${tx.cantidad.toFixed(1)} RC</span>
             </div>`;
         }).join('');
     }
@@ -590,6 +617,7 @@
         cargarAvisosAdmin();
         cargarCatalogoAdmin();
         actualizarContadorRecurrentes();
+        cargarConfig();
     });
 </script>
 </body>

@@ -131,14 +131,14 @@
 
                 <div class="balance-card">
                     <span>Cuenta Corriente</span>
-                    <h1 id="main-balance">💰 0.0 CR</h1>
+                    <h1 id="main-balance">💰 0.0 RC</h1>
                 </div>
 
                 <div class="vault-card">
                     <div class="vault-header">
                         <h3><i class="fa-solid fa-vault"></i> Caja Fuerte</h3>
                     </div>
-                    <div class="vault-balance" id="vault-balance">💎 0.0 CR</div>
+                    <div class="vault-balance" id="vault-balance">💎 0.0 RC</div>
                     <p class="vault-projection" id="vault-projection">Loading...</p>
                     <div class="vault-controls">
                         <button class="btn-vault" id="btn-deposit"><i class="fa-solid fa-arrow-up"></i> Ingresar</button>
@@ -152,7 +152,7 @@
             <div id="tab-market">
                 <div class="market-header">
                     <h2>🛒 Tarifario del Aula</h2>
-                    <p>Compra privilegios o consulta cómo ganar CR.</p>
+                    <p>Compra privilegios o consulta cómo ganar RC.</p>
                 </div>
 
                 <div class="market-columns">
@@ -240,11 +240,22 @@
 
         document.getElementById('student-name').innerText = data.name;
         document.getElementById('student-role').innerText = data.role;
-        document.getElementById('main-balance').innerText = `💰 ${data.balance.toFixed(1)} CR`;
-        document.getElementById('vault-balance').innerText = `💎 ${data.vault_balance.toFixed(1)} CR`;
+        document.getElementById('main-balance').innerText = `💰 ${data.balance.toFixed(1)} RC`;
+        document.getElementById('vault-balance').innerText = `💎 ${data.vault_balance.toFixed(1)} RC`;
 
-        const projected = data.vault_balance * 1.05;
-        document.getElementById('vault-projection').innerHTML = `Próximo mes: <b>${projected.toFixed(1)} CR</b> (al 5%)`;
+        // Proyección de la caja fuerte según el interés y periodo configurados por el maestro
+        let rateDec = 0.05, periodo = 'mes';
+        try {
+            const cfg = await (await fetch(`${API_BASE_URL}/config`)).json();
+            if (cfg.interes_rate) rateDec = parseFloat(cfg.interes_rate);
+            if (cfg.interes_periodo) periodo = cfg.interes_periodo;
+        } catch (e) {}
+        const factor = periodo === 'semana' ? 0.25 : 1;
+        const tasa = rateDec * factor;                 // tasa efectiva por aplicación
+        const projected = data.vault_balance * (1 + tasa);
+        const unidad = periodo === 'mes' ? 'Próximo mes' : 'Próxima semana';
+        const pct = +(tasa * 100).toFixed(2);          // % efectivo, sin ceros sobrantes
+        document.getElementById('vault-projection').innerHTML = `${unidad}: <b>${projected.toFixed(1)} RC</b> (al ${pct}%)`;
 
         const historyContainer = document.getElementById('history-container');
         historyContainer.innerHTML = '<h3>Últimos Movimientos</h3>';
@@ -288,7 +299,7 @@
 
     async function handleVaultAction(action) {
         if (!currentStudentID) return;
-        const amount = parseFloat(prompt(`¿Cuántos CR quieres ${action === 'deposit' ? 'ingresar' : 'retirar'}?`));
+        const amount = parseFloat(prompt(`¿Cuántos RC quieres ${action === 'deposit' ? 'ingresar' : 'retirar'}?`));
         if (!amount || amount <= 0) return;
 
         const endpoint = action === 'deposit' ? '/vault/deposit' : '/vault/withdraw';
@@ -327,8 +338,8 @@
     function tarjetaGasto(c, esComprable) {
         const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
         const contenido = esComprable
-            ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${c.valor} CR</button>`
-            : `<div class="badge-fixed">-${c.valor} CR<small>Informativo</small></div>`;
+            ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${c.valor} RC</button>`
+            : `<div class="badge-fixed">-${c.valor} RC<small>Informativo</small></div>`;
         const icono = esComprable ? '🛒' : '🔒';
         return `<div class="market-item">
                     <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
@@ -339,8 +350,8 @@
     // Tarjeta de un INGRESO (activo -> badge verde; informativo -> etiqueta gris).
     function tarjetaIngreso(c, esComprable) {
         const contenido = esComprable
-            ? `<div class="badge-earn">+${c.valor} CR</div>`
-            : `<div class="badge-fixed">+${c.valor} CR<small>Informativo</small></div>`;
+            ? `<div class="badge-earn">+${c.valor} RC</div>`
+            : `<div class="badge-fixed">+${c.valor} RC<small>Informativo</small></div>`;
         const icono = esComprable ? '⭐' : '🔒';
         return `<div class="market-item">
                     <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
@@ -389,7 +400,7 @@
 
     async function comprarArticulo(itemName, price) {
         if (!currentStudentID) return;
-        if(confirm(`¿Confirmas la compra de "${itemName}" por ${price} CR?`)) {
+        if(confirm(`¿Confirmas la compra de "${itemName}" por ${price} RC?`)) {
             const response = await fetch(`${API_BASE_URL}/market/buy`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
