@@ -323,3 +323,72 @@
             body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable })
         });
         document.getElementById('nombreRecurso').value = '';
+        document.getElementById('valorRecurso').value = '';
+        cargarCatalogoAdmin();
+    }
+
+    async function borrarRecurso(id) {
+        await fetch(`${API_BASE_URL}/catalogo/${id}`, { method: 'DELETE' });
+        cargarCatalogoAdmin();
+    }
+
+    // NUEVO: alterna un gasto entre comprable (1) e informativo (0)
+    async function toggleComprable(id, nuevoEstado) {
+        await fetch(`${API_BASE_URL}/catalogo/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ es_comprable: nuevoEstado })
+        });
+        cargarCatalogoAdmin();
+    }
+
+    // NUEVO: editar el concepto y/o el valor de un recurso existente
+    async function editarRecurso(id, conceptoActual, valorActual) {
+        const concepto = prompt('Concepto:', conceptoActual);
+        if (concepto === null) return; // canceló
+        const valorStr = prompt('Valor (CR):', valorActual);
+        if (valorStr === null) return; // canceló
+        const valor = parseFloat(valorStr);
+        if (!concepto.trim() || isNaN(valor)) return alert('Concepto o valor no válidos.');
+
+        await fetch(`${API_BASE_URL}/catalogo/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ concepto: concepto.trim(), valor })
+        });
+        cargarCatalogoAdmin();
+    }
+
+    // NUEVO: marca/desmarca todas las casillas
+    function toggleSeleccionTodo(source) {
+        document.querySelectorAll('.chk-recurso').forEach(chk => { chk.checked = source.checked; });
+    }
+
+    // NUEVO: borra de golpe todos los conceptos seleccionados
+    async function borrarSeleccionados() {
+        const ids = Array.from(document.querySelectorAll('.chk-recurso:checked')).map(chk => chk.value);
+        if (ids.length === 0) return alert('No has seleccionado ningún concepto.');
+        if (!confirm(`¿Eliminar ${ids.length} concepto(s) seleccionado(s)?`)) return;
+
+        for (const id of ids) {
+            await fetch(`${API_BASE_URL}/catalogo/${id}`, { method: 'DELETE' });
+        }
+        cargarCatalogoAdmin();
+    }
+
+    async function limpiarDuplicados() {
+        if (confirm('¿Limpiar duplicados del tarifario?')) {
+            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, { method: 'POST' });
+            cargarCatalogoAdmin();
+        }
+    }
+
+    // ---------- ARRANQUE ----------
+    document.addEventListener('DOMContentLoaded', () => {
+        loadClass();
+        cargarAvisosAdmin();
+        cargarCatalogoAdmin();
+    });
+</script>
+</body>
+</html>
