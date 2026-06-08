@@ -44,15 +44,19 @@
         /* Barra de acciones del tarifario (selección múltiple) */
         .tarifario-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; flex-wrap: wrap; gap: 8px; }
         .tarifario-toolbar label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-        .item-recurso { background: #1e272e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .item-recurso { background: #1e272e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; flex-direction: column; gap: 6px; }
         .item-recurso .item-label { display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer; }
         .item-recurso input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
-        .item-acciones { display: flex; align-items: center; gap: 4px; }
+        .item-acciones { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 
-        /* Botón que alterna entre Comprable / Solo informativo (solo en gastos) */
+        /* Botón que alterna entre Comprable / Solo informativo */
         .btn-toggle { border: none; border-radius: 4px; padding: 4px 8px; font-size: 11px; font-weight: bold; cursor: pointer; color: white; white-space: nowrap; }
         .btn-toggle.is-comprable { background: #05c46b; }
         .btn-toggle.is-info { background: #808e9b; }
+
+        /* Desplegable de frecuencia (recurrencia) por concepto */
+        .sel-frec { background: #2c3e50; color: #d2dae2; border: 1px solid #3c40c6; border-radius: 4px; padding: 3px 4px; font-size: 11px; cursor: pointer; }
+        .sel-frec.activa { border-color: #0fbcf9; color: #0fbcf9; font-weight: bold; }
     </style>
 </head>
 <body>
@@ -80,6 +84,17 @@
                 <input type="number" id="mass-amount" placeholder="Cantidad CR" style="width: 90px;">
                 <input type="text" id="mass-concept" placeholder="Ej: Mantenimiento Pupitre" style="width: 150px;">
                 <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
+            </div>
+            <div class="control-box" style="border-left: 4px solid #c0392b;">
+                <h3 style="color: #c0392b;">⚠️ Fin de Curso</h3>
+                <p style="font-size: 11px; color: #808e9b; margin: 4px 0 8px;">Borra TODOS los alumnos y sus movimientos. Conserva el tarifario para el curso siguiente.</p>
+                <button class="btn-action btn-nuclear" onclick="resetCurso()">🗑️ Borrar todos los alumnos</button>
+            </div>
+            <div class="control-box" style="border-left: 4px solid #0fbcf9;">
+                <h3 style="color: #0fbcf9;">🔁 Pagos / Cobros recurrentes</h3>
+                <p style="font-size: 11px; color: #808e9b; margin: 4px 0 8px;">La frecuencia de cada concepto se elige en la pestaña «Tablón y Tarifario».</p>
+                <button class="btn-magic" onclick="aplicarRecurrentes()">▶️ Aplicar recurrentes de hoy</button>
+                <div id="recurrentes-info" style="font-size: 11px; color: #808e9b; margin-top: 6px;">—</div>
             </div>
         </div>
         <table id="student-list"></table>
@@ -197,6 +212,17 @@
         loadClass();
     }
 
+    // FIN DE CURSO: borra TODOS los alumnos y sus movimientos (conserva el tarifario).
+    // Doble confirmación porque es irreversible.
+    async function resetCurso() {
+        if (!confirm('⚠️ Vas a BORRAR a TODOS los alumnos y todos sus movimientos.\n\nEsto deja la web lista para el curso siguiente, pero NO se puede deshacer.\n\n¿Seguro que quieres continuar?')) return;
+        const seguridad = prompt('Para confirmar, escribe BORRAR en mayúsculas:');
+        if (seguridad !== 'BORRAR') return alert('Cancelado. No se ha borrado nada.');
+        await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
+        alert('✅ Hecho. Todos los alumnos han sido eliminados. La web está lista para el nuevo curso.');
+        loadClass();
+    }
+
     async function applyInterest() {
         const rate = parseFloat(document.getElementById('interest-rate').value);
         if (isNaN(rate)) return alert('Introduce un porcentaje válido.');
@@ -293,6 +319,19 @@
                         ${c.es_comprable ? '🛒 Comprable' : '🔒 Informativo'}
                    </button>`;
 
+            // Desplegable de frecuencia (recurrencia). Cambiable en cualquier momento.
+            const freqActual = c.frecuencia || '';
+            const opt = (v, t) => `<option value="${v}"${freqActual === v ? ' selected' : ''}>${t}</option>`;
+            const selFrec = `<select class="sel-frec ${freqActual ? 'activa' : ''}"
+                        title="Cada cuánto se aplica este concepto a TODA la clase"
+                        onchange="cambiarFrecuencia(${c.id}, this.value)">
+                        ${opt('', '🔁 No recurrente')}
+                        ${opt('diaria', 'Diaria')}
+                        ${opt('semanal', 'Semanal')}
+                        ${opt('quincenal', 'Quincenal')}
+                        ${opt('mensual', 'Mensual')}
+                   </select>`;
+
             const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
                 <label class="item-label">
                     <input type="checkbox" class="chk-recurso" value="${c.id}">
@@ -300,6 +339,7 @@
                 </label>
                 <div class="item-acciones">
                     ${btnToggle}
+                    ${selFrec}
                     <button class="btn-action btn-magic" title="Editar concepto o valor" onclick="editarRecurso(${c.id}, '${conceptoEsc}', ${c.valor})">✏️</button>
                     <button class="btn-action btn-nuclear" title="Eliminar" onclick="borrarRecurso(${c.id})">🗑️</button>
                 </div>
@@ -382,11 +422,58 @@
         }
     }
 
+    // ---------- RECURRENTES ----------
+    // NUEVO: cambia la frecuencia de un concepto (o '' = no recurrente)
+    async function cambiarFrecuencia(id, frecuencia) {
+        await fetch(`${API_BASE_URL}/catalogo/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ frecuencia })
+        });
+        cargarCatalogoAdmin();
+        actualizarContadorRecurrentes();
+    }
+
+    // NUEVO: muestra cuántos recurrentes tocan hoy
+    async function actualizarContadorRecurrentes() {
+        const el = document.getElementById('recurrentes-info');
+        if (!el) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/recurrentes/pendientes`);
+            const pend = await res.json();
+            el.textContent = pend.length > 0
+                ? `⏳ ${pend.length} pendiente(s) para hoy`
+                : '✅ Nada pendiente hoy';
+        } catch (e) {
+            el.textContent = '';
+        }
+    }
+
+    // NUEVO: aplica de golpe a toda la clase los recurrentes que tocan hoy
+    async function aplicarRecurrentes() {
+        if (!confirm('¿Aplicar a TODA la clase los pagos/cobros recurrentes que tocan hoy?')) return;
+        const res = await fetch(`${API_BASE_URL}/admin/aplicar-recurrentes`, { method: 'POST' });
+        const data = await res.json();
+        const aplicados = data.aplicados || [];
+        if (aplicados.length === 0) {
+            alert('No había recurrentes pendientes para hoy. ✅');
+        } else {
+            const lista = aplicados
+                .map(a => `• ${a.concepto} (${a.tipo === 'Gasto' ? '-' : '+'}${a.valor} CR · ${a.frecuencia})`)
+                .join('\n');
+            alert(`Aplicado a ${data.total_alumnos} alumno(s):\n\n${lista}`);
+        }
+        loadClass();
+        cargarCatalogoAdmin();
+        actualizarContadorRecurrentes();
+    }
+
     // ---------- ARRANQUE ----------
     document.addEventListener('DOMContentLoaded', () => {
         loadClass();
         cargarAvisosAdmin();
         cargarCatalogoAdmin();
+        actualizarContadorRecurrentes();
     });
 </script>
 </body>
