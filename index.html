@@ -58,6 +58,7 @@
         .tx-icon { width: 35px; height: 35px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
         .amount.plus { color: var(--primary-green); font-weight: bold;}
         .amount.minus { color: var(--primary-red); font-weight: bold;}
+        .btn-historial { width: 100%; margin-top: 10px; padding: 12px; border: none; border-radius: 14px; background: white; color: var(--primary-blue); font-weight: bold; font-size: 13px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
 
         /* --- VISTA MERCADO (TARIFARIO DOS COLUMNAS) --- */
         #tab-market { display: none; }
@@ -250,20 +251,39 @@
         if (data.history.length === 0) {
             historyContainer.innerHTML += '<p style="color:gray; font-size:12px;">No hay movimientos aún.</p>';
         } else {
-            data.history.forEach(tx => {
-                const isIncome = tx.cantidad > 0;
-                historyContainer.innerHTML += `
-                    <div class="transaction">
-                        <div class="tx-info">
-                            <div class="tx-icon" style="background: ${isIncome ? '#e8f8f5' : '#fdedec'}; color: ${isIncome ? '#2ecc71' : '#e74c3c'};">
-                                <i class="fa-solid ${tx.tipo === 'vault' ? 'fa-vault' : 'fa-receipt'}"></i>
-                            </div>
-                            <div style="font-size: 14px;"><b>${tx.concepto}</b><br><span style="font-size: 11px; color: gray;">${tx.fecha}</span></div>
-                        </div>
-                        <div class="amount ${isIncome ? 'plus' : 'minus'}">${isIncome ? '+' : ''}${tx.cantidad.toFixed(1)}</div>
-                    </div>`;
-            });
+            data.history.forEach(tx => { historyContainer.innerHTML += tarjetaMovimiento(tx); });
+            historyContainer.innerHTML += `<button class="btn-historial" onclick="verHistorialCompleto()">📜 Ver historial completo</button>`;
         }
+    }
+
+    // Tarjeta de un movimiento (reutilizada por los últimos 5 y el historial completo)
+    function tarjetaMovimiento(tx) {
+        const isIncome = tx.cantidad > 0;
+        return `
+            <div class="transaction">
+                <div class="tx-info">
+                    <div class="tx-icon" style="background: ${isIncome ? '#e8f8f5' : '#fdedec'}; color: ${isIncome ? '#2ecc71' : '#e74c3c'};">
+                        <i class="fa-solid ${tx.tipo === 'vault' ? 'fa-vault' : 'fa-receipt'}"></i>
+                    </div>
+                    <div style="font-size: 14px;"><b>${tx.concepto}</b><br><span style="font-size: 11px; color: gray;">${tx.fecha}</span></div>
+                </div>
+                <div class="amount ${isIncome ? 'plus' : 'minus'}">${isIncome ? '+' : ''}${tx.cantidad.toFixed(1)}</div>
+            </div>`;
+    }
+
+    // Carga y muestra TODOS los movimientos del alumno
+    async function verHistorialCompleto() {
+        if (!currentStudentID) return;
+        const res = await fetch(`${API_BASE_URL}/student/${currentStudentID}/historial`);
+        const hist = await res.json();
+        const c = document.getElementById('history-container');
+        c.innerHTML = '<h3>Historial completo</h3>';
+        if (!hist.length) {
+            c.innerHTML += '<p style="color:gray; font-size:12px;">No hay movimientos.</p>';
+            return;
+        }
+        hist.forEach(tx => { c.innerHTML += tarjetaMovimiento(tx); });
+        c.innerHTML += `<button class="btn-historial" onclick="loadStudentData()">Ver menos</button>`;
     }
 
     async function handleVaultAction(action) {

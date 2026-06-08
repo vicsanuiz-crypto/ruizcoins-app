@@ -57,6 +57,23 @@
         /* Desplegable de frecuencia (recurrencia) por concepto */
         .sel-frec { background: #2c3e50; color: #d2dae2; border: 1px solid #3c40c6; border-radius: 4px; padding: 3px 4px; font-size: 11px; cursor: pointer; }
         .sel-frec.activa { border-color: #0fbcf9; color: #0fbcf9; font-weight: bold; }
+
+        /* Filas de alumnos arrastrables */
+        #student-list tr[data-id] { cursor: move; }
+        #student-list tr[data-id]:hover { background: #34495e; }
+        #student-list tr.arrastrando { opacity: 0.4; }
+        .drag-handle { color: #808e9b; margin-right: 6px; }
+
+        /* Modal de historial */
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal-box { background: #2c3e50; border-radius: 10px; width: 90%; max-width: 520px; max-height: 80vh; display: flex; flex-direction: column; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid #34495e; }
+        .modal-head h3 { margin: 0; color: #0fbcf9; }
+        .modal-body { padding: 8px 18px 18px; overflow-y: auto; }
+        .hist-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #34495e; font-size: 13px; gap: 10px; }
+        .hist-amount.plus { color: #05c46b; font-weight: bold; white-space: nowrap; }
+        .hist-amount.minus { color: #ff3f34; font-weight: bold; white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -86,9 +103,10 @@
                 <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
             </div>
             <div class="control-box" style="border-left: 4px solid #c0392b;">
-                <h3 style="color: #c0392b;">⚠️ Fin de Curso</h3>
-                <p style="font-size: 11px; color: #808e9b; margin: 4px 0 8px;">Borra TODOS los alumnos y sus movimientos. Conserva el tarifario para el curso siguiente.</p>
+                <h3 style="color: #c0392b;">⚠️ Reinicio</h3>
+                <button class="btn-action btn-danger" onclick="resetSaldos()" style="margin-bottom: 6px;">🔄 Resetear saldos</button>
                 <button class="btn-action btn-nuclear" onclick="resetCurso()">🗑️ Borrar todos los alumnos</button>
+                <p style="font-size: 10px; color: #808e9b; margin-top: 8px;">«Resetear saldos» pone a 0 el dinero de todos (conserva los alumnos). «Borrar alumnos» los elimina (conserva el tarifario).</p>
             </div>
             <div class="control-box" style="border-left: 4px solid #0fbcf9;">
                 <h3 style="color: #0fbcf9;">🔁 Pagos / Cobros recurrentes</h3>
@@ -122,6 +140,7 @@
                     </label>
                     <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
                     <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
+                    <button class="btn-action btn-nuclear" onclick="resetConceptos()">🗑️ Borrar todo el tarifario</button>
                 </div>
 
                 <!-- NUEVO: barra de acciones para selección múltiple -->
@@ -136,6 +155,17 @@
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Modal de historial de movimientos -->
+<div id="modal-historial" class="modal-overlay" onclick="cerrarHistorial(event)">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3 id="modal-titulo">Historial</h3>
+            <button class="btn-action btn-danger" onclick="cerrarHistorial()">✖</button>
+        </div>
+        <div id="modal-contenido" class="modal-body"></div>
     </div>
 </div>
 
@@ -161,9 +191,11 @@
             </tr>`;
         students.forEach(s => {
             const nombreEsc = (s.nombre || '').replace(/'/g, "\\'");
+            // Fila arrastrable (draggable) para reordenar por arrastrar y soltar
             table.innerHTML += `
-                <tr>
-                    <td><b>${s.id_alumno}</b></td>
+                <tr draggable="true" data-id="${s.id_alumno}" title="Arrastra para reordenar"
+                    ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)">
+                    <td><span class="drag-handle">⠿</span><b>${s.id_alumno}</b></td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} CR</b></td>
@@ -171,6 +203,7 @@
                     <td>
                         <button class="btn-action btn-pay"  onclick="adminTransaction(${s.id_alumno}, 'pay')">+ Pagar</button>
                         <button class="btn-action btn-fine" onclick="adminTransaction(${s.id_alumno}, 'fine')">- Multar</button>
+                        <button class="btn-action btn-magic" title="Ver historial" onclick="verHistorial(${s.id_alumno}, '${nombreEsc}')">📜</button>
                         <button class="btn-action btn-delete" onclick="deleteStudent(${s.id_alumno}, '${nombreEsc}')">🗑️</button>
                     </td>
                 </tr>`;
@@ -220,6 +253,15 @@
         if (seguridad !== 'BORRAR') return alert('Cancelado. No se ha borrado nada.');
         await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
         alert('✅ Hecho. Todos los alumnos han sido eliminados. La web está lista para el nuevo curso.');
+        loadClass();
+    }
+
+    // RESET SALDOS: pone a 0 el dinero (cuenta + caja fuerte) de todos los alumnos
+    // y borra sus movimientos. Conserva a los alumnos.
+    async function resetSaldos() {
+        if (!confirm('¿Poner a 0 el saldo y la caja fuerte de TODOS los alumnos y borrar sus movimientos?\n\nLos alumnos NO se eliminan. No se puede deshacer.')) return;
+        await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
+        alert('✅ Saldos reseteados a 0 para toda la clase.');
         loadClass();
     }
 
@@ -422,6 +464,16 @@
         }
     }
 
+    // RESET CONCEPTOS: borra TODO el tarifario (gastos e ingresos).
+    async function resetConceptos() {
+        if (!confirm('⚠️ Vas a BORRAR TODOS los conceptos del tarifario (gastos e ingresos).\n\nNo afecta a los alumnos ni a sus saldos. No se puede deshacer.')) return;
+        const seguridad = prompt('Para confirmar, escribe BORRAR en mayúsculas:');
+        if (seguridad !== 'BORRAR') return alert('Cancelado. No se ha borrado nada.');
+        await fetch(`${API_BASE_URL}/admin/reset-catalogo`, { method: 'POST' });
+        alert('✅ Tarifario vaciado.');
+        cargarCatalogoAdmin();
+    }
+
     // ---------- RECURRENTES ----------
     // NUEVO: cambia la frecuencia de un concepto (o '' = no recurrente)
     async function cambiarFrecuencia(id, frecuencia) {
@@ -466,6 +518,67 @@
         loadClass();
         cargarCatalogoAdmin();
         actualizarContadorRecurrentes();
+    }
+
+    // ---------- HISTORIAL (modal) ----------
+    async function verHistorial(id, nombre) {
+        document.getElementById('modal-titulo').textContent = `📜 Historial de ${nombre}`;
+        const cont = document.getElementById('modal-contenido');
+        cont.innerHTML = '<p style="color:#808e9b;">Cargando...</p>';
+        document.getElementById('modal-historial').classList.add('show');
+
+        const res = await fetch(`${API_BASE_URL}/student/${id}/historial`);
+        const hist = await res.json();
+        if (!hist.length) {
+            cont.innerHTML = '<p style="color:#808e9b;">Sin movimientos.</p>';
+            return;
+        }
+        cont.innerHTML = hist.map(tx => {
+            const plus = tx.cantidad > 0;
+            return `<div class="hist-row">
+                <span><b>${tx.concepto}</b><br><span style="font-size:11px; color:#808e9b;">${tx.fecha}</span></span>
+                <span class="hist-amount ${plus ? 'plus' : 'minus'}">${plus ? '+' : ''}${tx.cantidad.toFixed(1)} CR</span>
+            </div>`;
+        }).join('');
+    }
+
+    function cerrarHistorial(event) {
+        // Si es un clic, solo cerrar al pulsar el fondo (overlay) o la X; no al pulsar dentro
+        if (event && event.target && event.target.id !== 'modal-historial' && event.type === 'click') return;
+        document.getElementById('modal-historial').classList.remove('show');
+    }
+
+    // ---------- ARRASTRAR Y SOLTAR (reordenar alumnos) ----------
+    let dragSrcId = null;
+    function dragStart(e) {
+        dragSrcId = e.currentTarget.getAttribute('data-id');
+        e.currentTarget.classList.add('arrastrando');
+        e.dataTransfer.effectAllowed = 'move';
+    }
+    function dragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
+    function dragEnd(e) { e.currentTarget.classList.remove('arrastrando'); }
+    function dropRow(e) {
+        e.preventDefault();
+        const targetRow = e.currentTarget;
+        const targetId = targetRow.getAttribute('data-id');
+        if (dragSrcId === null || dragSrcId === targetId) return;
+        const tbody = targetRow.parentNode;
+        const srcRow = tbody.querySelector(`tr[data-id="${dragSrcId}"]`);
+        if (!srcRow) return;
+        const rows = Array.from(tbody.querySelectorAll('tr[data-id]'));
+        // Si la fila origen está por encima del destino, la soltamos debajo; si no, encima
+        if (rows.indexOf(srcRow) < rows.indexOf(targetRow)) targetRow.after(srcRow);
+        else targetRow.before(srcRow);
+        guardarOrdenAlumnos();
+    }
+    async function guardarOrdenAlumnos() {
+        const ids = Array.from(document.querySelectorAll('#student-list tr[data-id]'))
+            .map(tr => parseInt(tr.getAttribute('data-id')));
+        await fetch(`${API_BASE_URL}/admin/students/orden`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ orden: ids })
+        });
     }
 
     // ---------- ARRANQUE ----------
