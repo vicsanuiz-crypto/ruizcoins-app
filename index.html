@@ -328,10 +328,15 @@
                         ${contenido}
                     </div>`;
             } else {
+                // Ingreso comprable/activo -> badge verde. Informativo -> etiqueta gris fija.
+                const contenidoIngreso = esComprable
+                    ? `<div class="badge-earn">+${c.valor} CR</div>`
+                    : `<div class="badge-fixed">+${c.valor} CR<small>Informativo</small></div>`;
+                const iconoIngreso = esComprable ? '⭐' : '🔒';
                 gridIngresos.innerHTML += `
                     <div class="market-item">
-                        <div class="item-info"><h4>⭐ ${c.concepto}</h4></div>
-                        <div class="badge-earn">+${c.valor} CR</div>
+                        <div class="item-info"><h4>${iconoIngreso} ${c.concepto}</h4></div>
+                        ${contenidoIngreso}
                     </div>`;
             }
         });

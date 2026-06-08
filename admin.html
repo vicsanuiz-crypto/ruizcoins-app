@@ -281,18 +281,17 @@
             const color = isGasto ? '#e74c3c' : '#05c46b';
             const signo = isGasto ? '-' : '+';
             const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
-            // El icono refleja el estado: 🛒 comprable, 🔒 solo informativo, ⭐ ingreso.
-            const icono = !isGasto ? '⭐' : (c.es_comprable ? '🛒' : '🔒');
+            // El icono refleja el estado y el tipo:
+            //   gasto comprable -> 🛒 | ingreso comprable -> ⭐ | cualquiera informativo -> 🔒
+            const icono = c.es_comprable ? (isGasto ? '🛒' : '⭐') : '🔒';
 
-            // Solo los GASTOS pueden alternar entre comprable / informativo.
-            // El botón muestra el estado ACTUAL y al pulsarlo lo cambia al contrario.
-            const btnToggle = isGasto
-                ? `<button class="btn-toggle ${c.es_comprable ? 'is-comprable' : 'is-info'}"
-                        title="${c.es_comprable ? 'Comprable por los alumnos. Pulsa para hacerlo solo informativo.' : 'Solo informativo (sin compra). Pulsa para hacerlo comprable.'}"
+            // Toggle comprable / informativo para AMBOS (gastos e ingresos).
+            // Muestra el estado ACTUAL y al pulsarlo lo cambia al contrario.
+            const btnToggle = `<button class="btn-toggle ${c.es_comprable ? 'is-comprable' : 'is-info'}"
+                        title="${c.es_comprable ? 'Activo. Pulsa para hacerlo solo informativo.' : 'Solo informativo. Pulsa para activarlo.'}"
                         onclick="toggleComprable(${c.id}, ${c.es_comprable ? 0 : 1})">
                         ${c.es_comprable ? '🛒 Comprable' : '🔒 Informativo'}
-                   </button>`
-                : '';
+                   </button>`;
 
             const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
                 <label class="item-label">
