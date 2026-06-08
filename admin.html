@@ -149,6 +149,9 @@
                     <label style="font-size: 10px; display:flex; align-items:center;">
                         <input type="checkbox" id="esComprable" checked> Comprable
                     </label>
+                    <label style="font-size: 10px; display:flex; align-items:center;" title="Solo para Ingresos: lo convierte en un sueldo asignable a un alumno. Recuerda ponerle una frecuencia.">
+                        <input type="checkbox" id="esTrabajo"> 💼 Trabajo
+                    </label>
                     <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
                     <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
                     <button class="btn-action btn-nuclear" onclick="resetConceptos()">🗑️ Borrar todo el tarifario</button>
@@ -201,7 +204,7 @@
         table.innerHTML = `
             <tr>
                 <th>ID</th><th>Nombre</th><th>Cargo</th>
-                <th>Saldo</th><th>Caja Fuerte</th><th>Acciones</th>
+                <th>Saldo</th><th>Caja Fuerte</th><th>Trabajo</th><th>Acciones</th>
             </tr>`;
         students.forEach(s => {
             const nombreEsc = (s.nombre || '').replace(/'/g, "\\'");
@@ -214,6 +217,8 @@
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} RC</b></td>
                     <td>${s.vault_balance.toFixed(1)} RC</td>
+                    <td><select class="sel-trabajo" title="Trabajo del alumno (se paga solo en su periodo)"
+                               onchange="asignarTrabajo(${s.id_alumno}, this.value)">${opcionesTrabajos(s.trabajo_id)}</select></td>
                     <td>
                         <button class="btn-action btn-pay"  onclick="adminTransaction(${s.id_alumno}, 'pay')">+ Pagar</button>
                         <button class="btn-action btn-fine" onclick="adminTransaction(${s.id_alumno}, 'fine')">- Multar</button>
@@ -222,6 +227,30 @@
                     </td>
                 </tr>`;
         });
+    }
+
+    // Opciones del desplegable de trabajos: conceptos Ingreso marcados como trabajo.
+    // El valor de cada <option> es el id del concepto; "" = sin trabajo.
+    function opcionesTrabajos(selectedId) {
+        const trabajos = catalogoCache.filter(c => c.tipo === 'Ingreso' && c.es_trabajo);
+        let html = `<option value="">— Sin trabajo —</option>`;
+        trabajos.forEach(t => {
+            const sel = (selectedId != null && Number(selectedId) === Number(t.id)) ? ' selected' : '';
+            const periodo = t.frecuencia ? `${t.frecuencia}` : '⚠️ sin periodo';
+            html += `<option value="${t.id}"${sel}>${t.concepto} (+${t.valor} RC · ${periodo})</option>`;
+        });
+        return html;
+    }
+
+    // Asigna (o quita) el trabajo de un alumno. El primer sueldo se paga al aplicar
+    // los recurrentes (botón o tarea automática), respetando el periodo del trabajo.
+    async function asignarTrabajo(idAlumno, trabajoId) {
+        await fetch(`${API_BASE_URL}/admin/asignar-trabajo`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ id_alumno: idAlumno, trabajo_id: trabajoId || null })
+        });
+        actualizarContadorRecurrentes();
     }
 
     async function addStudent() {
@@ -437,13 +466,21 @@
                         ${opt('mensual', 'Mensual')}
                    </select>`;
 
+            // Solo los Ingresos pueden ser "trabajo" (un sueldo asignable a un alumno).
+            const btnTrabajo = isGasto ? '' : `<button class="btn-toggle ${c.es_trabajo ? 'is-comprable' : 'is-info'}"
+                        title="${c.es_trabajo ? 'Es un trabajo asignable a un alumno. Pulsa para que deje de serlo.' : 'No es trabajo. Pulsa para marcarlo como sueldo asignable a un alumno.'}"
+                        onclick="toggleTrabajo(${c.id}, ${c.es_trabajo ? 0 : 1})">
+                        ${c.es_trabajo ? '💼 Trabajo' : '💼 No'}
+                   </button>`;
+
             const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
                 <label class="item-label">
                     <input type="checkbox" class="chk-recurso" value="${c.id}">
-                    <span style="font-size:12px;">${icono} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} RC</span></span>
+                    <span style="font-size:12px;">${icono}${c.es_trabajo ? '💼' : ''} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} RC</span></span>
                 </label>
                 <div class="item-acciones">
                     ${btnToggle}
+                    ${btnTrabajo}
                     ${selFrec}
                     <button class="btn-action btn-magic" title="Editar concepto o valor" onclick="editarRecurso(${c.id}, '${conceptoEsc}', ${c.valor})">✏️</button>
                     <button class="btn-action btn-nuclear" title="Eliminar" onclick="borrarRecurso(${c.id})">🗑️</button>
@@ -452,6 +489,10 @@
             if (isGasto) { listaGastos.innerHTML += itemHTML; }
             else { listaIngresos.innerHTML += itemHTML; }
         });
+
+        // Si la tabla de alumnos ya está pintada, refrescamos sus desplegables de
+        // trabajo (la lista de trabajos pudo cambiar al añadir/marcar/borrar conceptos).
+        if (document.querySelector('#student-list tr')) loadClass();
     }
 
     async function añadirRecurso() {
@@ -459,15 +500,18 @@
         const tipo = document.getElementById('tipoRecurso').value;
         const valor = parseFloat(document.getElementById('valorRecurso').value);
         const esComprable = document.getElementById('esComprable').checked;
+        const esTrabajo = document.getElementById('esTrabajo').checked;
         if (!concepto || isNaN(valor)) return alert('Pon un concepto y un valor válidos.');
+        if (esTrabajo && tipo !== 'Ingreso') return alert('Un trabajo (sueldo) tiene que ser de tipo Ingreso.');
 
         await fetch(`${API_BASE_URL}/catalogo`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable })
+            body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable, es_trabajo: esTrabajo })
         });
         document.getElementById('nombreRecurso').value = '';
         document.getElementById('valorRecurso').value = '';
+        document.getElementById('esTrabajo').checked = false;
         cargarCatalogoAdmin();
     }
 
@@ -482,6 +526,16 @@
             method: 'PUT',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ es_comprable: nuevoEstado })
+        });
+        cargarCatalogoAdmin();
+    }
+
+    // NUEVO: marca/desmarca un Ingreso como "trabajo" (sueldo asignable a un alumno)
+    async function toggleTrabajo(id, nuevoEstado) {
+        await fetch(`${API_BASE_URL}/catalogo/${id}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ es_trabajo: nuevoEstado })
         });
         cargarCatalogoAdmin();
     }
@@ -570,13 +624,21 @@
         const res = await fetch(`${API_BASE_URL}/admin/aplicar-recurrentes`, { method: 'POST' });
         const data = await res.json();
         const aplicados = data.aplicados || [];
-        if (aplicados.length === 0) {
-            alert('No había recurrentes pendientes para hoy. ✅');
+        const totalTrabajos = data.total_trabajos || 0;
+        if (aplicados.length === 0 && totalTrabajos === 0) {
+            alert('No había recurrentes ni sueldos pendientes para hoy. ✅');
         } else {
-            const lista = aplicados
-                .map(a => `• ${a.concepto} (${a.tipo === 'Gasto' ? '-' : '+'}${a.valor} RC · ${a.frecuencia})`)
-                .join('\n');
-            alert(`Aplicado a ${data.total_alumnos} alumno(s):\n\n${lista}`);
+            let msg = '';
+            if (aplicados.length > 0) {
+                const lista = aplicados
+                    .map(a => `• ${a.concepto} (${a.tipo === 'Gasto' ? '-' : '+'}${a.valor} RC · ${a.frecuencia})`)
+                    .join('\n');
+                msg += `Recurrentes de clase (a ${data.total_alumnos} alumno/s):\n${lista}\n\n`;
+            }
+            if (totalTrabajos > 0) {
+                msg += `💼 Sueldos pagados a ${totalTrabajos} alumno/s con trabajo.`;
+            }
+            alert(msg.trim());
         }
         loadClass();
         cargarCatalogoAdmin();
@@ -645,10 +707,11 @@
     }
 
     // ---------- ARRANQUE ----------
-    document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', async () => {
+        // Primero el tarifario: la tabla de alumnos necesita la lista de trabajos para el desplegable
+        await cargarCatalogoAdmin();
         loadClass();
         cargarAvisosAdmin();
-        cargarCatalogoAdmin();
         actualizarContadorRecurrentes();
         cargarConfig();
     });
