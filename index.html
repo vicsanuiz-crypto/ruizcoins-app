@@ -80,6 +80,11 @@
         /* Gasto fijo / informativo: el alumno lo ve pero NO lo puede comprar */
         .badge-fixed { background: #f2f4f6; color: #7f8c8d; padding: 8px; border-radius: 8px; font-weight: bold; font-size: 12px; border: 1px dashed #bdc3c7; }
         .badge-fixed small { display: block; font-size: 9px; font-weight: 600; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; }
+        /* Contenedores del tarifario + subtítulos de grupo (Puedes comprar / Solo informativo) */
+        #grid-gastos, #grid-ingresos { display: flex; flex-direction: column; gap: 10px; }
+        .sub-grupo { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #2c3e50; padding-bottom: 3px; border-bottom: 1px solid #e1e6ea; margin-top: 4px; }
+        .sub-grupo:first-child { margin-top: 0; }
+        .sub-grupo.sub-info { color: #95a5a6; border-bottom-color: #e8ecef; }
 
         /* --- BARRA DE NAVEGACIÓN INFERIOR --- */
         .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #eee; border-radius: 20px 20px 0 0; z-index: 100; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
@@ -298,52 +303,68 @@
         }
     }
 
-    // CORREGIDO: función limpia (antes tenía un bloque duplicado y una llave de más
-    // que rompían TODO el JavaScript con un SyntaxError).
+    // Tarjeta de un GASTO (comprable -> botón rojo; informativo -> etiqueta gris).
+    function tarjetaGasto(c, esComprable) {
+        const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
+        const contenido = esComprable
+            ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${c.valor} CR</button>`
+            : `<div class="badge-fixed">-${c.valor} CR<small>Informativo</small></div>`;
+        const icono = esComprable ? '🛒' : '🔒';
+        return `<div class="market-item">
+                    <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
+                    ${contenido}
+                </div>`;
+    }
+
+    // Tarjeta de un INGRESO (activo -> badge verde; informativo -> etiqueta gris).
+    function tarjetaIngreso(c, esComprable) {
+        const contenido = esComprable
+            ? `<div class="badge-earn">+${c.valor} CR</div>`
+            : `<div class="badge-fixed">+${c.valor} CR<small>Informativo</small></div>`;
+        const icono = esComprable ? '⭐' : '🔒';
+        return `<div class="market-item">
+                    <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
+                    ${contenido}
+                </div>`;
+    }
+
     async function cargarCatalogo() {
         const res = await fetch(`${API_BASE_URL}/catalogo`);
         const catalogo = await res.json();
         const gridGastos = document.getElementById('grid-gastos');
         const gridIngresos = document.getElementById('grid-ingresos');
 
-        // 1. Limpiamos ANTES de empezar el bucle
-        gridGastos.innerHTML = '';
-        gridIngresos.innerHTML = '';
-
-        // 2. Procesamos cada item
+        // Separamos en grupos: comprables/activos vs. solo informativos
+        const gastosComprables = [], gastosInfo = [], ingresosActivos = [], ingresosInfo = [];
         catalogo.forEach(c => {
             const esComprable = c.hasOwnProperty('es_comprable') ? c.es_comprable : 1;
-
             if (c.tipo === 'Gasto') {
-                const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
-                // Comprable -> botón rojo de compra. Informativo -> etiqueta fija (sin compra).
-                const contenido = esComprable
-                    ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${c.valor} CR</button>`
-                    : `<div class="badge-fixed">-${c.valor} CR<small>Informativo</small></div>`;
-                const icono = esComprable ? '🛒' : '🔒';
-
-                gridGastos.innerHTML += `
-                    <div class="market-item">
-                        <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
-                        ${contenido}
-                    </div>`;
+                (esComprable ? gastosComprables : gastosInfo).push(c);
             } else {
-                // Ingreso comprable/activo -> badge verde. Informativo -> etiqueta gris fija.
-                const contenidoIngreso = esComprable
-                    ? `<div class="badge-earn">+${c.valor} CR</div>`
-                    : `<div class="badge-fixed">+${c.valor} CR<small>Informativo</small></div>`;
-                const iconoIngreso = esComprable ? '⭐' : '🔒';
-                gridIngresos.innerHTML += `
-                    <div class="market-item">
-                        <div class="item-info"><h4>${iconoIngreso} ${c.concepto}</h4></div>
-                        ${contenidoIngreso}
-                    </div>`;
+                (esComprable ? ingresosActivos : ingresosInfo).push(c);
             }
         });
 
-        // 3. Mensaje si alguna columna queda vacía
-        if (gridGastos.innerHTML === '') gridGastos.innerHTML = '<p style="font-size:11px; color:gray; text-align:center;">No hay gastos.</p>';
-        if (gridIngresos.innerHTML === '') gridIngresos.innerHTML = '<p style="font-size:11px; color:gray; text-align:center;">No hay tareas.</p>';
+        // --- Columna COMPRAR (gastos): comprables arriba, informativos debajo ---
+        let htmlGastos = '';
+        if (gastosComprables.length) {
+            htmlGastos += '<div class="sub-grupo">🛒 Puedes comprar</div>';
+            gastosComprables.forEach(c => htmlGastos += tarjetaGasto(c, 1));
+        }
+        if (gastosInfo.length) {
+            htmlGastos += '<div class="sub-grupo sub-info">🔒 Solo informativo</div>';
+            gastosInfo.forEach(c => htmlGastos += tarjetaGasto(c, 0));
+        }
+        gridGastos.innerHTML = htmlGastos || '<p style="font-size:11px; color:gray; text-align:center;">No hay gastos.</p>';
+
+        // --- Columna GANAR (ingresos): activos arriba, informativos debajo ---
+        let htmlIngresos = '';
+        ingresosActivos.forEach(c => htmlIngresos += tarjetaIngreso(c, 1));
+        if (ingresosInfo.length) {
+            htmlIngresos += '<div class="sub-grupo sub-info">🔒 Solo informativo</div>';
+            ingresosInfo.forEach(c => htmlIngresos += tarjetaIngreso(c, 0));
+        }
+        gridIngresos.innerHTML = htmlIngresos || '<p style="font-size:11px; color:gray; text-align:center;">No hay tareas.</p>';
     }
 
     async function comprarArticulo(itemName, price) {
