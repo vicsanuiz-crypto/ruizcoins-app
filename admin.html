@@ -104,7 +104,10 @@
             <div class="control-box" style="border-left: 4px solid #05c46b;">
                 <h3>🏛️ Transacción Masiva (toda la clase)</h3>
                 <input type="number" id="mass-amount" placeholder="Cantidad RC" style="width: 90px;">
-                <input type="text" id="mass-concept" placeholder="Ej: Premio / Impuesto" style="width: 150px;">
+                <input type="text" id="mass-concept" placeholder="Ej: Premio / Impuesto" style="width: 150px;"
+                       list="lista-conceptos-tarifario" oninput="autoRellenarValorMasivo()" autocomplete="off">
+                <!-- Conceptos del tarifario para seleccionar directamente (se sigue pudiendo escribir uno nuevo) -->
+                <datalist id="lista-conceptos-tarifario"></datalist>
                 <div style="margin-top: 6px;">
                     <button class="btn-magic" style="background: #05c46b;" onclick="massTransaction('add')">+ Pagar a la clase</button>
                     <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
@@ -179,6 +182,9 @@
 
 <script>
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
+
+    // Copia en memoria del tarifario, para poder rellenar el valor en la Transacción Masiva
+    let catalogoCache = [];
 
     function switchTab(tab) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -308,6 +314,31 @@
         } catch (e) {}
     }
 
+    // Rellena el <datalist> de la Transacción Masiva con los conceptos del tarifario.
+    // El usuario puede elegir uno de la lista o seguir escribiendo uno nuevo libremente.
+    function rellenarDatalistConceptos(catalogo) {
+        const dl = document.getElementById('lista-conceptos-tarifario');
+        if (!dl) return;
+        dl.innerHTML = '';
+        catalogo.forEach(c => {
+            const signo = c.tipo === 'Gasto' ? '-' : '+';
+            const opt = document.createElement('option');
+            opt.value = c.concepto;                       // lo que se escribe en el campo
+            opt.label = `${signo}${c.valor} RC`;          // pista del valor (lo muestran algunos navegadores)
+            dl.appendChild(opt);
+        });
+    }
+
+    // Si el concepto escrito coincide con uno del tarifario, autocompleta su valor.
+    // Si no coincide (concepto nuevo), no toca la cantidad: se sigue escribiendo a mano.
+    function autoRellenarValorMasivo() {
+        const texto = document.getElementById('mass-concept').value.trim().toLowerCase();
+        const match = catalogoCache.find(c => (c.concepto || '').trim().toLowerCase() === texto);
+        if (match) {
+            document.getElementById('mass-amount').value = Math.abs(match.valor);
+        }
+    }
+
     async function massTransaction(mode) {
         const amount = parseFloat(document.getElementById('mass-amount').value);
         const concepto = document.getElementById('mass-concept').value.trim() || 'Transacción Masiva';
@@ -365,6 +396,8 @@
     async function cargarCatalogoAdmin() {
         const res = await fetch(`${API_BASE_URL}/catalogo`);
         const catalogo = await res.json();
+        catalogoCache = catalogo;            // guardamos para la Transacción Masiva
+        rellenarDatalistConceptos(catalogo); // refrescamos el desplegable de conceptos
         const listaGastos = document.getElementById('admin-lista-gastos');
         const listaIngresos = document.getElementById('admin-lista-ingresos');
         listaGastos.innerHTML = '';
