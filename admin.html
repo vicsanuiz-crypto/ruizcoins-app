@@ -343,13 +343,24 @@
         } catch (e) {}
     }
 
-    // Rellena el <datalist> de la Transacción Masiva con los conceptos del tarifario.
-    // El usuario puede elegir uno de la lista o seguir escribiendo uno nuevo libremente.
+    // Rellena el <datalist> de la Transacción Masiva.
+    // Por petición del maestro, solo aparecen IMPUESTOS, MULTAS y SUELDO/SALARIO.
+    // Empleos (trabajos) y consumibles quedan fuera (se asignan/pagan por otras vías).
+    // OJO: el campo sigue siendo un <input> de texto libre — si necesitas un concepto
+    // distinto (ej. un 'Pupitre'), simplemente lo escribes a mano.
     function rellenarDatalistConceptos(catalogo) {
         const dl = document.getElementById('lista-conceptos-tarifario');
         if (!dl) return;
         dl.innerHTML = '';
-        catalogo.forEach(c => {
+        // Filtro por prefijo del nombre (case-insensitive, sin tildes).
+        const norm = s => (s || '').toLowerCase()
+            .normalize('NFD').replace(/[̀-ͯ]/g, ''); // quita tildes
+        const permitidos = ['impuesto', 'multa', 'salario', 'sueldo'];
+        const conceptosPermitidos = catalogo.filter(c => {
+            const n = norm(c.concepto);
+            return permitidos.some(p => n.startsWith(p));
+        });
+        conceptosPermitidos.forEach(c => {
             const signo = c.tipo === 'Gasto' ? '-' : '+';
             const opt = document.createElement('option');
             opt.value = c.concepto;                       // lo que se escribe en el campo
