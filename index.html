@@ -135,6 +135,11 @@
                     <h1 id="main-balance">💰 0.0 RC</h1>
                 </div>
 
+                <div class="avisos-box" id="impuestos-box" style="display:none; border-left:4px solid #e67e22;">
+                    <h3>🧾 Impuestos por pagar</h3>
+                    <ul id="listaImpuestos" style="list-style:none; padding:0;"></ul>
+                </div>
+
                 <div class="vault-card">
                     <div class="vault-header">
                         <h3><i class="fa-solid fa-vault"></i> Caja Fuerte</h3>
@@ -194,6 +199,10 @@
         const sep = path.includes('?') ? '&' : '?';
         return `${API_BASE_URL}${path}${sep}grupo=${encodeURIComponent(currentGrupo || '')}`;
     }
+
+    // Modo avanzado de la clase: 2 decimales (céntimos). Se lee de la config de la clase.
+    let modoAvanzado = false;
+    function dec(n) { return Number(n || 0).toFixed(modoAvanzado ? 2 : 1); }
 
     // Rellena el desplegable de clases en la pantalla de entrada
     async function cargarClasesLogin() {
@@ -264,24 +273,29 @@
         const response = await fetch(`${API_BASE_URL}/student/${currentStudentID}`);
         const data = await response.json();
 
-        document.getElementById('student-name').innerText = data.name;
-        document.getElementById('student-role').innerText = data.role;
-        document.getElementById('main-balance').innerText = `💰 ${data.balance.toFixed(1)} RC`;
-        document.getElementById('vault-balance').innerText = `💎 ${data.vault_balance.toFixed(1)} RC`;
-
-        // Proyección de la caja fuerte según el interés y periodo configurados por el maestro
+        // Config de la clase (interés + modo avanzado). La leemos antes de pintar
+        // para saber con cuántos decimales mostrar los saldos.
         let rateDec = 0.05, periodo = 'mes';
         try {
             const cfg = await (await fetch(conGrupo('/config'))).json();
             if (cfg.interes_rate) rateDec = parseFloat(cfg.interes_rate);
             if (cfg.interes_periodo) periodo = cfg.interes_periodo;
-        } catch (e) {}
+            modoAvanzado = (cfg.modo_avanzado === '1');
+        } catch (e) { modoAvanzado = false; }
+
+        document.getElementById('student-name').innerText = data.name;
+        document.getElementById('student-role').innerText = data.role;
+        document.getElementById('main-balance').innerText = `💰 ${dec(data.balance)} RC`;
+        document.getElementById('vault-balance').innerText = `💎 ${dec(data.vault_balance)} RC`;
+
         const factor = periodo === 'semana' ? 0.25 : 1;
         const tasa = rateDec * factor;                 // tasa efectiva por aplicación
         const projected = data.vault_balance * (1 + tasa);
         const unidad = periodo === 'mes' ? 'Próximo mes' : 'Próxima semana';
         const pct = +(tasa * 100).toFixed(2);          // % efectivo, sin ceros sobrantes
-        document.getElementById('vault-projection').innerHTML = `${unidad}: <b>${projected.toFixed(1)} RC</b> (al ${pct}%)`;
+        document.getElementById('vault-projection').innerHTML = `${unidad}: <b>${dec(projected)} RC</b> (al ${pct}%)`;
+
+        cargarImpuestos();   // deudas/impuestos pendientes del alumno
 
         const historyContainer = document.getElementById('history-container');
         historyContainer.innerHTML = '<h3>Últimos Movimientos</h3>';
@@ -291,6 +305,45 @@
             data.history.forEach(tx => { historyContainer.innerHTML += tarjetaMovimiento(tx); });
             historyContainer.innerHTML += `<button class="btn-historial" onclick="verHistorialCompleto()">📜 Ver historial completo</button>`;
         }
+    }
+
+    // Carga los impuestos pendientes del alumno y los muestra con botón de pagar
+    async function cargarImpuestos() {
+        if (!currentStudentID) return;
+        const box = document.getElementById('impuestos-box');
+        const lista = document.getElementById('listaImpuestos');
+        let deudas = [];
+        try {
+            deudas = await (await fetch(`${API_BASE_URL}/student/${currentStudentID}/impuestos`)).json();
+        } catch (e) { deudas = []; }
+        if (!deudas.length) { box.style.display = 'none'; lista.innerHTML = ''; return; }
+        box.style.display = 'block';
+        lista.innerHTML = deudas.map(d => {
+            const aviso = d.vencida
+                ? `<span style="color:#ff3f34; font-size:11px;">⛔ Vencido (${d.fecha_limite})${d.recargo_aplicado ? ' · con recargo' : ''}</span>`
+                : `<span style="color:#808e9b; font-size:11px;">Vence: ${d.fecha_limite || '—'}</span>`;
+            return `
+                <li style="background:#1e272e; padding:10px; margin-bottom:8px; border-radius:8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+                        <div>
+                            <b>${d.concepto}</b><br>${aviso}
+                        </div>
+                        <button class="btn-vault" style="background:#e67e22; white-space:nowrap;"
+                                onclick="pagarImpuesto(${d.id})">Pagar ${dec(d.importe)} RC</button>
+                    </div>
+                </li>`;
+        }).join('');
+    }
+
+    async function pagarImpuesto(impuestoId) {
+        if (!confirm('¿Pagar este impuesto? Se descontará de tu cuenta corriente.')) return;
+        const res = await fetch(`${API_BASE_URL}/student/pagar-impuesto`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ id_alumno: currentStudentID, impuesto_id: impuestoId })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) return alert(data.error || 'No se pudo pagar el impuesto.');
+        loadStudentData();   // refresca saldo e impuestos
     }
 
     // Tarjeta de un movimiento (reutilizada por los últimos 5 y el historial completo)
@@ -304,7 +357,7 @@
                     </div>
                     <div style="font-size: 14px;"><b>${tx.concepto}</b><br><span style="font-size: 11px; color: gray;">${tx.fecha}</span></div>
                 </div>
-                <div class="amount ${isIncome ? 'plus' : 'minus'}">${isIncome ? '+' : ''}${tx.cantidad.toFixed(1)}</div>
+                <div class="amount ${isIncome ? 'plus' : 'minus'}">${isIncome ? '+' : ''}${dec(tx.cantidad)}</div>
             </div>`;
     }
 

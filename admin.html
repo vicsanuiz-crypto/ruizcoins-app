@@ -103,6 +103,8 @@
         <button class="btn-action btn-add" style="padding:6px 12px; font-size:13px;" onclick="nuevaClase()">➕ Nueva clase</button>
         <button class="btn-action btn-magic" style="padding:6px 12px; font-size:13px;" onclick="renombrarClase()">✏️ Renombrar</button>
         <button class="btn-action btn-nuclear" style="padding:6px 12px; font-size:13px;" onclick="borrarClase()">🗑️ Borrar clase</button>
+        <span style="flex:1;"></span>
+        <button class="btn-action" id="btn-modo" style="padding:6px 12px; font-size:13px; background:#e67e22; color:#fff;" onclick="toggleModoAvanzado()" title="Modo avanzado: decimales (céntimos) e impuestos (IRPF) que paga el alumno">⚙️ Modo: —</button>
     </div>
 
     <div class="admin-tabs">
@@ -132,6 +134,24 @@
                 <div style="margin-top: 6px;">
                     <button class="btn-magic" style="background: #05c46b;" onclick="massTransaction('add')">+ Pagar a la clase</button>
                     <button class="btn-magic" style="background: #ff3f34;" onclick="massTransaction('sub')">- Cobrar a la clase</button>
+                </div>
+            </div>
+            <div class="control-box" id="box-irpf" style="border-left: 4px solid #e67e22; display:none;">
+                <h3 style="color:#e67e22;">🧾 IRPF / Impuestos</h3>
+                <p style="font-size:10px; color:#808e9b; margin:2px 0 6px;">El alumno tendrá que pagarlo él en su app antes de la fecha. Si no, se le aplica el recargo (al pulsar «Aplicar recurrentes» o con la tarea diaria).</p>
+                <input type="text" id="irpf-concepto" placeholder="Concepto (ej: IRPF junio)" style="width: 150px;" value="IRPF">
+                <div style="margin-top:6px; font-size:12px;">
+                    <input type="number" id="irpf-pct" placeholder="%" style="width:60px;"> % del saldo de cada alumno
+                </div>
+                <div style="margin-top:6px; font-size:12px;">
+                    Vence: <input type="date" id="irpf-fecha" style="padding:4px;">
+                </div>
+                <div style="margin-top:6px; font-size:12px;">
+                    Recargo si no paga: <input type="number" id="irpf-recargo" placeholder="%" style="width:55px;" value="25"> %
+                </div>
+                <div style="margin-top:8px;">
+                    <button class="btn-magic" style="background:#e67e22;" onclick="emitirIRPF()">Emitir a la clase</button>
+                    <button class="btn-action btn-magic" onclick="verEstadoIRPF()">📋 Ver estado</button>
                 </div>
             </div>
             <div class="control-box" style="border-left: 4px solid #c0392b;">
@@ -220,6 +240,61 @@
         return `${API_BASE_URL}${path}${sep}grupo=${encodeURIComponent(grupoActual)}`;
     }
 
+    // Modo avanzado de la clase actual: 2 decimales (céntimos) + impuestos IRPF.
+    let modoAvanzado = false;
+    // Formatea una cantidad de RC con los decimales del modo (2 si avanzado, 1 si no)
+    function dec(n) { return Number(n || 0).toFixed(modoAvanzado ? 2 : 1); }
+
+    // Activa/desactiva el modo avanzado de la clase (se guarda en su config)
+    async function toggleModoAvanzado() {
+        if (!grupoActual) return;
+        const nuevo = modoAvanzado ? '0' : '1';
+        await fetch(`${API_BASE_URL}/config`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ grupo: grupoActual, modo_avanzado: nuevo })
+        });
+        recargarTodo();
+    }
+
+    // Emitir IRPF (impuesto a pagar) a toda la clase
+    async function emitirIRPF() {
+        const concepto = document.getElementById('irpf-concepto').value.trim() || 'IRPF';
+        const pct = parseFloat(document.getElementById('irpf-pct').value);
+        const fecha = document.getElementById('irpf-fecha').value;
+        const recargo = parseFloat(document.getElementById('irpf-recargo').value) || 0;
+        if (isNaN(pct) || pct <= 0) return alert('Pon un % del saldo válido (mayor que 0).');
+        if (!fecha) return alert('Pon una fecha límite.');
+        if (!confirm(`¿Emitir "${concepto}" a la clase ${grupoActual}?\n\nCada alumno deberá el ${pct}% de su saldo, a pagar antes del ${fecha}.\nRecargo si no paga: +${recargo}%.`)) return;
+        const res = await fetch(`${API_BASE_URL}/admin/impuestos`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ grupo: grupoActual, concepto, pct, fecha_limite: fecha, recargo_pct: recargo })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) return alert('No se pudo emitir: ' + (data.error || res.status));
+        alert(`✅ "${concepto}" emitido a ${data.emitidos} alumno(s) de ${grupoActual}.`);
+        document.getElementById('irpf-pct').value = '';
+        loadClass();
+    }
+
+    // Ver quién ha pagado / debe (en el modal)
+    async function verEstadoIRPF() {
+        const res = await fetch(conGrupo('/admin/impuestos'));
+        const lista = await res.json();
+        document.getElementById('modal-titulo').textContent = `🧾 Impuestos de ${grupoActual}`;
+        const cont = document.getElementById('modal-contenido');
+        if (!lista.length) { cont.innerHTML = '<p style="color:#808e9b;">No hay impuestos emitidos en esta clase.</p>'; }
+        else {
+            const color = e => e === 'pagada' ? '#05c46b' : (e === 'vencida' ? '#ff3f34' : '#f1c40f');
+            const icono = e => e === 'pagada' ? '✅' : (e === 'vencida' ? '⛔' : '⏳');
+            cont.innerHTML = lista.map(x => `
+                <div style="display:flex; justify-content:space-between; gap:8px; padding:6px 8px; border-bottom:1px solid #34495e; font-size:13px;">
+                    <span><b>${x.numero}</b> · ${x.nombre} — ${x.concepto}</span>
+                    <span style="color:${color(x.estado)}; white-space:nowrap;">${icono(x.estado)} ${dec(x.importe)} RC ${x.recargo_aplicado ? '(+recargo)' : ''}</span>
+                </div>`).join('');
+        }
+        document.getElementById('modal-historial').classList.add('show');
+    }
+
     // Carga la lista de clases y rellena el selector. Si no hay ninguna, ofrece crear la primera.
     async function cargarClases() {
         let clases = [];
@@ -259,12 +334,12 @@
     }
 
     // Recarga todo lo que depende de la clase seleccionada
-    function recargarTodo() {
-        cargarCatalogoAdmin();   // primero el tarifario (la tabla de alumnos lo necesita para los trabajos)
+    async function recargarTodo() {
+        await cargarConfig();    // primero: fija modoAvanzado (decimales) y muestra/oculta el IRPF
+        cargarCatalogoAdmin();   // tarifario (la tabla de alumnos lo necesita para los trabajos)
         loadClass();
         cargarAvisosAdmin();
         actualizarContadorRecurrentes();
-        cargarConfig();
     }
 
     async function nuevaClase() {
@@ -349,8 +424,8 @@
                     </td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
-                    <td><b>${s.balance.toFixed(1)} RC</b></td>
-                    <td>${s.vault_balance.toFixed(1)} RC</td>
+                    <td><b>${dec(s.balance)} RC</b></td>
+                    <td>${dec(s.vault_balance)} RC</td>
                     <td><select class="sel-trabajo" title="Trabajo del alumno (se paga solo en su periodo)"
                                onchange="asignarTrabajo(${s.id_alumno}, this.value)">${opcionesTrabajos(s.trabajo_id)}</select></td>
                     <td>
@@ -495,15 +570,20 @@
 
     // Carga el ajuste de interés guardado para dejar el selector como estaba
     async function cargarConfig() {
-        try {
-            const cfg = await (await fetch(conGrupo('/config'))).json();
-            if (cfg.interes_rate) {
-                document.getElementById('interest-rate').value = Math.round(parseFloat(cfg.interes_rate) * 10000) / 100;
-            }
-            if (cfg.interes_periodo) {
-                document.getElementById('interest-period').value = cfg.interes_periodo;
-            }
-        } catch (e) {}
+        let cfg = {};
+        try { cfg = await (await fetch(conGrupo('/config'))).json(); } catch (e) { cfg = {}; }
+        if (cfg.interes_rate) {
+            document.getElementById('interest-rate').value = Math.round(parseFloat(cfg.interes_rate) * 10000) / 100;
+        }
+        if (cfg.interes_periodo) {
+            document.getElementById('interest-period').value = cfg.interes_periodo;
+        }
+        // Modo avanzado de esta clase
+        modoAvanzado = (cfg.modo_avanzado === '1');
+        const btn = document.getElementById('btn-modo');
+        if (btn) btn.textContent = modoAvanzado ? '⚙️ Modo: Avanzado' : '⚙️ Modo: Normal';
+        const box = document.getElementById('box-irpf');
+        if (box) box.style.display = modoAvanzado ? '' : 'none';
     }
 
     // Rellena el <datalist> de la Transacción Masiva.
@@ -811,8 +891,9 @@
         const data = await res.json();
         const aplicados = data.aplicados || [];
         const totalTrabajos = data.total_trabajos || 0;
-        if (aplicados.length === 0 && totalTrabajos === 0) {
-            alert('No había recurrentes ni sueldos pendientes para hoy. ✅');
+        const totalRecargos = data.total_recargos || 0;
+        if (aplicados.length === 0 && totalTrabajos === 0 && totalRecargos === 0) {
+            alert('No había recurrentes, sueldos ni recargos pendientes para hoy. ✅');
         } else {
             let msg = '';
             if (aplicados.length > 0) {
@@ -822,7 +903,10 @@
                 msg += `Recurrentes de clase (a ${data.total_alumnos} alumno/s):\n${lista}\n\n`;
             }
             if (totalTrabajos > 0) {
-                msg += `💼 Sueldos pagados a ${totalTrabajos} alumno/s con trabajo.`;
+                msg += `💼 Sueldos pagados a ${totalTrabajos} alumno/s con trabajo.\n`;
+            }
+            if (totalRecargos > 0) {
+                msg += `🧾 Recargo aplicado a ${totalRecargos} impuesto(s) vencido(s) sin pagar.`;
             }
             alert(msg.trim());
         }
