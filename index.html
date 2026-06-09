@@ -235,6 +235,9 @@
                 const data = await response.json();
                 currentStudentID = data.id;     // id interno, para el resto de llamadas
                 currentGrupo = clase;           // clase elegida
+                // Recordar la sesión para que al recargar no vuelva al login
+                localStorage.setItem('ruiz_alumno_id', currentStudentID);
+                localStorage.setItem('ruiz_alumno_grupo', currentGrupo);
                 errorMsg.style.display = 'none';
                 document.getElementById('login-screen').style.transform = 'translateY(-100%)';
 
@@ -255,6 +258,8 @@
     function logout() {
         currentStudentID = null;
         currentGrupo = null;
+        localStorage.removeItem('ruiz_alumno_id');
+        localStorage.removeItem('ruiz_alumno_grupo');
         document.getElementById('login-id').value = '';
         document.getElementById('app-content').style.display = 'none';
         document.getElementById('login-screen').style.transform = 'translateY(0)';
@@ -268,9 +273,25 @@
     // Al abrir la app, cargamos la lista de clases en el desplegable de entrada
     cargarClasesLogin();
 
+    // Si hay una sesión guardada, entramos directos al dashboard (sin pasar por el login).
+    // Si la sesión ya no vale, loadStudentData() devuelve al login solo.
+    (function restaurarSesion() {
+        const savedId = localStorage.getItem('ruiz_alumno_id');
+        const savedGrupo = localStorage.getItem('ruiz_alumno_grupo');
+        if (!savedId || !savedGrupo) return;
+        currentStudentID = savedId;
+        currentGrupo = savedGrupo;
+        document.getElementById('login-screen').style.transform = 'translateY(-100%)';
+        document.getElementById('app-content').style.display = 'flex';
+        loadStudentData();
+        cargarAvisos();
+        cargarCatalogo();
+    })();
+
     async function loadStudentData() {
         if (!currentStudentID) return;
         const response = await fetch(`${API_BASE_URL}/student/${currentStudentID}`);
+        if (!response.ok) { logout(); return; }   // sesión caducada/alumno borrado -> al login
         const data = await response.json();
 
         // Config de la clase (interés + modo avanzado). La leemos antes de pintar
