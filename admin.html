@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Evita que el navegador se quede con una versión vieja en caché -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>RuizCoins - Central Bank</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #1e272e; color: #d2dae2; margin: 0; padding: 20px; }
@@ -63,6 +67,11 @@
         #student-list tr[data-id]:hover { background: #34495e; }
         #student-list tr.arrastrando { opacity: 0.4; }
         .drag-handle { color: #808e9b; margin-right: 6px; }
+        /* Flechas para reordenar alumnos con un clic (alternativa fiable al arrastrar) */
+        .col-orden { white-space: nowrap; }
+        .btn-orden { cursor: pointer; border: none; background: #34495e; color: #fff; border-radius: 3px;
+                     padding: 0 5px; margin-left: 3px; font-size: 11px; line-height: 18px; font-weight: bold; }
+        .btn-orden:hover { background: #0fbcf9; color: #1e272e; }
 
         /* Modal de historial */
         .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 500; align-items: center; justify-content: center; }
@@ -215,7 +224,10 @@
             table.innerHTML += `
                 <tr draggable="true" data-id="${s.id_alumno}" title="Arrastra para reordenar (ID interno: ${s.id_alumno})"
                     ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)">
-                    <td><span class="drag-handle">⠿</span><b>${idx + 1}</b></td>
+                    <td class="col-orden">
+                        <b>${idx + 1}</b>
+                        <button class="btn-orden" title="Subir un puesto" onclick="moverAlumno(${s.id_alumno}, 'up')">▲</button><button class="btn-orden" title="Bajar un puesto" onclick="moverAlumno(${s.id_alumno}, 'down')">▼</button>
+                    </td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} RC</b></td>
@@ -723,6 +735,24 @@
     async function guardarOrdenAlumnos() {
         const ids = Array.from(document.querySelectorAll('#student-list tr[data-id]'))
             .map(tr => parseInt(tr.getAttribute('data-id')));
+        return _postOrden(ids);
+    }
+
+    // Mueve un alumno un puesto arriba/abajo con un clic (alternativa fiable al arrastrar).
+    // Lee el orden actual, intercambia con el vecino y guarda. Mismo motor que el arrastrar.
+    async function moverAlumno(idAlumno, dir) {
+        const ids = Array.from(document.querySelectorAll('#student-list tr[data-id]'))
+            .map(tr => parseInt(tr.getAttribute('data-id')));
+        const i = ids.indexOf(idAlumno);
+        if (i === -1) return;
+        const j = dir === 'up' ? i - 1 : i + 1;
+        if (j < 0 || j >= ids.length) return;   // ya está en el extremo, no hay nada que hacer
+        [ids[i], ids[j]] = [ids[j], ids[i]];     // intercambio
+        await _postOrden(ids);
+    }
+
+    // Guarda un orden concreto de IDs en el backend, con manejo de errores y recarga.
+    async function _postOrden(ids) {
         try {
             const res = await fetch(`${API_BASE_URL}/admin/students/orden`, {
                 method: 'POST',
@@ -734,8 +764,8 @@
             // y para confirmar visualmente que el orden quedó guardado.
             loadClass();
         } catch (err) {
-            alert('No se pudo guardar el nuevo orden (el servidor no respondió a tiempo). '
-                + 'Recargo la lista con el orden anterior. Inténtalo de nuevo en unos segundos.');
+            alert('No se pudo guardar el nuevo orden (el servidor no respondió a tiempo, '
+                + 'puede estar "despertando"). Recargo la lista. Inténtalo otra vez en unos segundos.');
             loadClass();
         }
     }
