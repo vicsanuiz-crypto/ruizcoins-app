@@ -203,16 +203,19 @@
         const table = document.getElementById('student-list');
         table.innerHTML = `
             <tr>
-                <th>ID</th><th>Nombre</th><th>Cargo</th>
+                <th>Nº</th><th>Nombre</th><th>Cargo</th>
                 <th>Saldo</th><th>Caja Fuerte</th><th>Trabajo</th><th>Acciones</th>
             </tr>`;
-        students.forEach(s => {
+        students.forEach((s, idx) => {
             const nombreEsc = (s.nombre || '').replace(/'/g, "\\'");
-            // Fila arrastrable (draggable) para reordenar por arrastrar y soltar
+            // Fila arrastrable (draggable) para reordenar por arrastrar y soltar.
+            // La columna "Nº" muestra la POSICIÓN visible (1, 2, 3...), no el id interno
+            // de la BD (que es inmutable y deja huecos al borrar). Así, al eliminar al
+            // alumno nº1, el siguiente pasa a ser el nº1 visualmente.
             table.innerHTML += `
-                <tr draggable="true" data-id="${s.id_alumno}" title="Arrastra para reordenar"
+                <tr draggable="true" data-id="${s.id_alumno}" title="Arrastra para reordenar (ID interno: ${s.id_alumno})"
                     ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)">
-                    <td><span class="drag-handle">⠿</span><b>${s.id_alumno}</b></td>
+                    <td><span class="drag-handle">⠿</span><b>${idx + 1}</b></td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} RC</b></td>
@@ -690,11 +693,17 @@
         dragSrcId = e.currentTarget.getAttribute('data-id');
         e.currentTarget.classList.add('arrastrando');
         e.dataTransfer.effectAllowed = 'move';
+        // Algunos navegadores necesitan datos en el transfer para iniciar el drag bien
+        try { e.dataTransfer.setData('text/plain', dragSrcId); } catch (_) {}
     }
     function dragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; return false; }
-    function dragEnd(e) { e.currentTarget.classList.remove('arrastrando'); }
-    function dropRow(e) {
+    function dragEnd(e) {
+        e.currentTarget.classList.remove('arrastrando');
+        dragSrcId = null;   // limpiar estado entre arrastres
+    }
+    async function dropRow(e) {
         e.preventDefault();
+        e.stopPropagation();   // evita que el navegador haga su acción por defecto
         const targetRow = e.currentTarget;
         const targetId = targetRow.getAttribute('data-id');
         if (dragSrcId === null || dragSrcId === targetId) return;
@@ -705,16 +714,30 @@
         // Si la fila origen está por encima del destino, la soltamos debajo; si no, encima
         if (rows.indexOf(srcRow) < rows.indexOf(targetRow)) targetRow.after(srcRow);
         else targetRow.before(srcRow);
-        guardarOrdenAlumnos();
+        // ANTES no había await ni manejo de errores: si el backend tardaba o fallaba,
+        // la fila se veía movida pero al recargar volvía a su sitio (orden no persistido).
+        // Ahora esperamos confirmación y refrescamos desde la BD para que lo que se ve
+        // sea exactamente lo guardado.
+        await guardarOrdenAlumnos();
     }
     async function guardarOrdenAlumnos() {
         const ids = Array.from(document.querySelectorAll('#student-list tr[data-id]'))
             .map(tr => parseInt(tr.getAttribute('data-id')));
-        await fetch(`${API_BASE_URL}/admin/students/orden`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ orden: ids })
-        });
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/students/orden`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ orden: ids })
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            // Refrescamos desde la BD para que la numeración "Nº" se actualice
+            // y para confirmar visualmente que el orden quedó guardado.
+            loadClass();
+        } catch (err) {
+            alert('No se pudo guardar el nuevo orden (el servidor no respondió a tiempo). '
+                + 'Recargo la lista con el orden anterior. Inténtalo de nuevo en unos segundos.');
+            loadClass();
+        }
     }
 
     // ---------- ARRANQUE ----------
