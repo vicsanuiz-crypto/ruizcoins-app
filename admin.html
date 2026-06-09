@@ -67,6 +67,9 @@
         #student-list tr[data-id]:hover { background: #34495e; }
         #student-list tr.arrastrando { opacity: 0.4; }
         .drag-handle { color: #808e9b; margin-right: 6px; }
+        /* Barra de selección de clase */
+        .clase-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background:#2c3e50; padding:10px 14px; border-radius:8px; margin-bottom:14px; }
+        #selector-clase { padding:8px 10px; font-size:16px; border-radius:6px; border:2px solid #0fbcf9; background:#1e272e; color:#fff; font-weight:bold; }
         /* Flechas para reordenar alumnos con un clic (alternativa fiable al arrastrar) */
         .col-orden { white-space: nowrap; }
         .btn-orden { cursor: pointer; border: none; background: #34495e; color: #fff; border-radius: 3px;
@@ -91,6 +94,15 @@
     <div class="header-bar">
         <h1>🏛️ Central Bank (Admin)</h1>
         <button class="btn-action btn-add" onclick="addStudent()">➕ Add Pupil</button>
+    </div>
+
+    <!-- Selector de CLASE: todo lo que se ve abajo (alumnos, tarifario, avisos) es de la clase elegida -->
+    <div class="clase-bar">
+        <b style="color:#0fbcf9; font-size:16px;">🏫 Clase:</b>
+        <select id="selector-clase" onchange="cambiarClase(this.value)"></select>
+        <button class="btn-action btn-add" style="padding:6px 12px; font-size:13px;" onclick="nuevaClase()">➕ Nueva clase</button>
+        <button class="btn-action btn-magic" style="padding:6px 12px; font-size:13px;" onclick="renombrarClase()">✏️ Renombrar</button>
+        <button class="btn-action btn-nuclear" style="padding:6px 12px; font-size:13px;" onclick="borrarClase()">🗑️ Borrar clase</button>
     </div>
 
     <div class="admin-tabs">
@@ -198,6 +210,106 @@
     // Copia en memoria del tarifario, para poder rellenar el valor en la Transacción Masiva
     let catalogoCache = [];
 
+    // ---------- CLASE/GRUPO ACTIVO ----------
+    // Todo el panel trabaja sobre la clase seleccionada. Se recuerda entre sesiones.
+    let grupoActual = localStorage.getItem('ruiz_grupo') || '';
+
+    // Añade ?grupo=... a una ruta GET (respeta si ya tiene query)
+    function conGrupo(path) {
+        const sep = path.includes('?') ? '&' : '?';
+        return `${API_BASE_URL}${path}${sep}grupo=${encodeURIComponent(grupoActual)}`;
+    }
+
+    // Carga la lista de clases y rellena el selector. Si no hay ninguna, ofrece crear la primera.
+    async function cargarClases() {
+        let clases = [];
+        try {
+            clases = await (await fetch(`${API_BASE_URL}/grupos`)).json();
+        } catch (e) { clases = []; }
+        const sel = document.getElementById('selector-clase');
+        sel.innerHTML = '';
+        if (!clases.length) {
+            // No hay clases todavía: creamos una para empezar
+            const nombre = prompt('No hay ninguna clase todavía. Nombre de tu primera clase:', '3º');
+            if (nombre && nombre.trim()) {
+                await fetch(`${API_BASE_URL}/grupos`, {
+                    method: 'POST', headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ nombre: nombre.trim() })
+                });
+                return cargarClases();
+            }
+            return;
+        }
+        clases.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c; opt.textContent = c;
+            sel.appendChild(opt);
+        });
+        // Si la clase recordada ya no existe, usamos la primera
+        if (!clases.includes(grupoActual)) grupoActual = clases[0];
+        sel.value = grupoActual;
+        localStorage.setItem('ruiz_grupo', grupoActual);
+        recargarTodo();
+    }
+
+    function cambiarClase(g) {
+        grupoActual = g;
+        localStorage.setItem('ruiz_grupo', g);
+        recargarTodo();
+    }
+
+    // Recarga todo lo que depende de la clase seleccionada
+    function recargarTodo() {
+        cargarCatalogoAdmin();   // primero el tarifario (la tabla de alumnos lo necesita para los trabajos)
+        loadClass();
+        cargarAvisosAdmin();
+        actualizarContadorRecurrentes();
+        cargarConfig();
+    }
+
+    async function nuevaClase() {
+        const nombre = prompt('Nombre de la nueva clase (ej: 5ºA):');
+        if (!nombre || !nombre.trim()) return;
+        let copiar_de = '';
+        if (confirm(`¿Copiar el tarifario (impuestos, multas, sueldos, trabajos) de "${grupoActual}" a la clase nueva?\n\nAceptar = copiar · Cancelar = empezar en blanco`)) {
+            copiar_de = grupoActual;
+        }
+        const res = await fetch(`${API_BASE_URL}/grupos`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ nombre: nombre.trim(), copiar_de })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) return alert('No se pudo crear: ' + (data.error || res.status));
+        grupoActual = nombre.trim();
+        localStorage.setItem('ruiz_grupo', grupoActual);
+        cargarClases();
+    }
+
+    async function renombrarClase() {
+        const nuevo = prompt(`Nuevo nombre para la clase "${grupoActual}":`, grupoActual);
+        if (!nuevo || !nuevo.trim() || nuevo.trim() === grupoActual) return;
+        const res = await fetch(`${API_BASE_URL}/grupos/renombrar`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ viejo: grupoActual, nuevo: nuevo.trim() })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) return alert('No se pudo renombrar: ' + (data.error || res.status));
+        grupoActual = nuevo.trim();
+        localStorage.setItem('ruiz_grupo', grupoActual);
+        cargarClases();
+    }
+
+    async function borrarClase() {
+        if (!confirm(`⚠️ Vas a BORRAR la clase "${grupoActual}" CON TODOS sus alumnos, su tarifario y sus avisos.\n\nNo se puede deshacer.`)) return;
+        const seguridad = prompt(`Para confirmar, escribe el nombre de la clase (${grupoActual}):`);
+        if (seguridad !== grupoActual) return alert('Cancelado. No se ha borrado nada.');
+        const res = await fetch(`${API_BASE_URL}/grupos/${encodeURIComponent(grupoActual)}`, { method: 'DELETE' });
+        if (!res.ok) return alert('No se pudo borrar la clase.');
+        grupoActual = '';
+        localStorage.removeItem('ruiz_grupo');
+        cargarClases();
+    }
+
     function switchTab(tab) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
         document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
@@ -207,13 +319,14 @@
 
     // ---------- ALUMNOS ----------
     async function loadClass() {
-        const res = await fetch(`${API_BASE_URL}/admin/students`);
+        if (!grupoActual) { document.getElementById('student-list').innerHTML = ''; return; }
+        const res = await fetch(conGrupo('/admin/students'));
         const students = await res.json();
         const table = document.getElementById('student-list');
         table.innerHTML = `
             <tr>
                 <th title="Número de fila: posición fija (1, 2, 3...). NO se mueve al reordenar; siempre va de arriba abajo.">Nº</th>
-                <th title="Número / ID del alumno. Es suyo y viaja con él al reordenar. Es también su número de acceso. En el futuro podrá ser el CIAL / número de lista.">ID</th>
+                <th title="Número de lista del alumno DENTRO de su clase. Es su número de acceso (con clase + este número entra).">ID</th>
                 <th>Nombre</th><th>Cargo</th>
                 <th>Saldo</th><th>Caja Fuerte</th><th>Trabajo</th><th>Acciones</th>
             </tr>`;
@@ -230,9 +343,9 @@
                         <b>${idx + 1}</b>
                         <button class="btn-orden" title="Subir al alumno un puesto" onclick="moverAlumno(${s.id_alumno}, 'up')">▲</button><button class="btn-orden" title="Bajar al alumno un puesto" onclick="moverAlumno(${s.id_alumno}, 'down')">▼</button>
                     </td>
-                    <td title="Número/ID del alumno (con el que inicia sesión)">
-                        <b style="color:#0fbcf9; font-size:16px;">${s.id_alumno}</b>
-                        <button class="btn-orden" title="Cambiar el número/ID de este alumno" onclick="cambiarNumeroAlumno(${s.id_alumno}, '${nombreEsc}')">✏️</button>
+                    <td title="Número de lista del alumno en su clase (con el que inicia sesión)">
+                        <b style="color:#0fbcf9; font-size:16px;">${s.numero}</b>
+                        <button class="btn-orden" title="Cambiar el número de lista de este alumno" onclick="cambiarNumeroAlumno(${s.id_alumno}, ${s.numero}, '${nombreEsc}')">✏️</button>
                     </td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
@@ -275,13 +388,14 @@
     }
 
     async function addStudent() {
-        const nombre = prompt('Nombre del nuevo alumno:');
+        if (!grupoActual) return alert('Primero selecciona o crea una clase.');
+        const nombre = prompt(`Nombre del nuevo alumno (clase ${grupoActual}):`);
         if (!nombre) return;
         const cargo = prompt('Cargo (opcional):', 'Student') || 'Student';
         await fetch(`${API_BASE_URL}/admin/add-student`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ nombre, cargo })
+            body: JSON.stringify({ nombre, cargo, grupo: grupoActual })
         });
         loadClass();
     }
@@ -304,14 +418,14 @@
     }
 
     // Cambia el número/ID de un alumno (su acceso). Sirve para asignar números de lista / CIAL.
-    async function cambiarNumeroAlumno(idActual, nombre) {
-        const nuevoStr = prompt(`Nuevo número/ID para ${nombre}\n(actual: ${idActual}). Es el número con el que el alumno inicia sesión.`, idActual);
+    async function cambiarNumeroAlumno(idAlumno, numeroActual, nombre) {
+        const nuevoStr = prompt(`Nuevo número de lista para ${nombre} en ${grupoActual}\n(actual: ${numeroActual}). Es el número con el que el alumno inicia sesión.`, numeroActual);
         if (nuevoStr === null) return;                 // canceló
         const nuevo = parseInt(nuevoStr, 10);
         if (isNaN(nuevo) || nuevo <= 0) return alert('Número no válido. Tiene que ser un entero mayor que 0.');
-        if (nuevo === idActual) return;                // sin cambios
+        if (nuevo === numeroActual) return;            // sin cambios
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/student/${idActual}/set-numero`, {
+            const res = await fetch(`${API_BASE_URL}/admin/student/${idAlumno}/set-numero`, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ nuevo_id: nuevo })
@@ -337,17 +451,23 @@
         if (!confirm('⚠️ Vas a BORRAR a TODOS los alumnos y todos sus movimientos.\n\nEsto deja la web lista para el curso siguiente, pero NO se puede deshacer.\n\n¿Seguro que quieres continuar?')) return;
         const seguridad = prompt('Para confirmar, escribe BORRAR en mayúsculas:');
         if (seguridad !== 'BORRAR') return alert('Cancelado. No se ha borrado nada.');
-        await fetch(`${API_BASE_URL}/admin/reset-pupils`, { method: 'POST' });
-        alert('✅ Hecho. Todos los alumnos han sido eliminados. La web está lista para el nuevo curso.');
+        await fetch(`${API_BASE_URL}/admin/reset-pupils`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ grupo: grupoActual })
+        });
+        alert(`✅ Hecho. Todos los alumnos de ${grupoActual} han sido eliminados.`);
         loadClass();
     }
 
     // RESET SALDOS: pone a 0 el dinero (cuenta + caja fuerte) de todos los alumnos
     // y borra sus movimientos. Conserva a los alumnos.
     async function resetSaldos() {
-        if (!confirm('¿Poner a 0 el saldo y la caja fuerte de TODOS los alumnos y borrar sus movimientos?\n\nLos alumnos NO se eliminan. No se puede deshacer.')) return;
-        await fetch(`${API_BASE_URL}/admin/reset`, { method: 'POST' });
-        alert('✅ Saldos reseteados a 0 para toda la clase.');
+        if (!confirm(`¿Poner a 0 el saldo y la caja fuerte de TODOS los alumnos de ${grupoActual} y borrar sus movimientos?\n\nLos alumnos NO se eliminan. No se puede deshacer.`)) return;
+        await fetch(`${API_BASE_URL}/admin/reset`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ grupo: grupoActual })
+        });
+        alert(`✅ Saldos reseteados a 0 para la clase ${grupoActual}.`);
         loadClass();
     }
 
@@ -368,15 +488,15 @@
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             // El backend espera el interés base en decimal (5% -> 0.05) y aplica el factor del periodo
-            body: JSON.stringify({ interest_rate: rate / 100, periodo })
+            body: JSON.stringify({ interest_rate: rate / 100, periodo, grupo: grupoActual })
         });
-        alert(`✅ Interés aplicado (${efectivo}% ${etiqueta}).`);
+        alert(`✅ Interés aplicado a ${grupoActual} (${efectivo}% ${etiqueta}).`);
     }
 
     // Carga el ajuste de interés guardado para dejar el selector como estaba
     async function cargarConfig() {
         try {
-            const cfg = await (await fetch(`${API_BASE_URL}/config`)).json();
+            const cfg = await (await fetch(conGrupo('/config'))).json();
             if (cfg.interes_rate) {
                 document.getElementById('interest-rate').value = Math.round(parseFloat(cfg.interes_rate) * 10000) / 100;
             }
@@ -427,11 +547,11 @@
         const concepto = document.getElementById('mass-concept').value.trim() || 'Transacción Masiva';
         if (isNaN(amount) || amount <= 0) return alert('Introduce una cantidad válida.');
         const cantidad = mode === 'sub' ? -amount : amount;
-        if (!confirm(`¿Aplicar ${cantidad} RC a TODA la clase? (${concepto})`)) return;
+        if (!confirm(`¿Aplicar ${cantidad} RC a TODA la clase ${grupoActual}? (${concepto})`)) return;
         await fetch(`${API_BASE_URL}/admin/mass-transaction`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ cantidad, concepto })
+            body: JSON.stringify({ cantidad, concepto, grupo: grupoActual })
         });
         document.getElementById('mass-amount').value = '';
         document.getElementById('mass-concept').value = '';
@@ -440,7 +560,8 @@
 
     // ---------- TABLÓN DE AVISOS ----------
     async function cargarAvisosAdmin() {
-        const res = await fetch(`${API_BASE_URL}/avisos`);
+        if (!grupoActual) return;
+        const res = await fetch(conGrupo('/avisos'));
         const avisos = await res.json();
         const lista = document.getElementById('admin-lista-avisos');
         lista.innerHTML = '';
@@ -464,7 +585,7 @@
         await fetch(`${API_BASE_URL}/avisos`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ mensaje })
+            body: JSON.stringify({ mensaje, grupo: grupoActual })
         });
         input.value = '';
         cargarAvisosAdmin();
@@ -477,7 +598,8 @@
 
     // ---------- TARIFARIO ----------
     async function cargarCatalogoAdmin() {
-        const res = await fetch(`${API_BASE_URL}/catalogo`);
+        if (!grupoActual) { catalogoCache = []; rellenarDatalistConceptos([]); return; }
+        const res = await fetch(conGrupo('/catalogo'));
         const catalogo = await res.json();
         catalogoCache = catalogo;            // guardamos para la Transacción Masiva
         rellenarDatalistConceptos(catalogo); // refrescamos el desplegable de conceptos
@@ -561,7 +683,7 @@
         await fetch(`${API_BASE_URL}/catalogo`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable, es_trabajo: esTrabajo })
+            body: JSON.stringify({ concepto, tipo, valor, es_comprable: esComprable, es_trabajo: esTrabajo, grupo: grupoActual })
         });
         document.getElementById('nombreRecurso').value = '';
         document.getElementById('valorRecurso').value = '';
@@ -629,8 +751,11 @@
     }
 
     async function limpiarDuplicados() {
-        if (confirm('¿Limpiar duplicados del tarifario?')) {
-            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, { method: 'POST' });
+        if (confirm(`¿Limpiar duplicados del tarifario de ${grupoActual}?`)) {
+            await fetch(`${API_BASE_URL}/admin/limpiar-duplicados`, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ grupo: grupoActual })
+            });
             cargarCatalogoAdmin();
         }
     }
@@ -640,8 +765,11 @@
         if (!confirm('⚠️ Vas a BORRAR TODOS los conceptos del tarifario (gastos e ingresos).\n\nNo afecta a los alumnos ni a sus saldos. No se puede deshacer.')) return;
         const seguridad = prompt('Para confirmar, escribe BORRAR en mayúsculas:');
         if (seguridad !== 'BORRAR') return alert('Cancelado. No se ha borrado nada.');
-        await fetch(`${API_BASE_URL}/admin/reset-catalogo`, { method: 'POST' });
-        alert('✅ Tarifario vaciado.');
+        await fetch(`${API_BASE_URL}/admin/reset-catalogo`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ grupo: grupoActual })
+        });
+        alert(`✅ Tarifario de ${grupoActual} vaciado.`);
         cargarCatalogoAdmin();
     }
 
@@ -661,8 +789,9 @@
     async function actualizarContadorRecurrentes() {
         const el = document.getElementById('recurrentes-info');
         if (!el) return;
+        if (!grupoActual) { el.textContent = ''; return; }
         try {
-            const res = await fetch(`${API_BASE_URL}/admin/recurrentes/pendientes`);
+            const res = await fetch(conGrupo('/admin/recurrentes/pendientes'));
             const pend = await res.json();
             el.textContent = pend.length > 0
                 ? `⏳ ${pend.length} pendiente(s) para hoy`
@@ -674,8 +803,11 @@
 
     // NUEVO: aplica de golpe a toda la clase los recurrentes que tocan hoy
     async function aplicarRecurrentes() {
-        if (!confirm('¿Aplicar a TODA la clase los pagos/cobros recurrentes que tocan hoy?')) return;
-        const res = await fetch(`${API_BASE_URL}/admin/aplicar-recurrentes`, { method: 'POST' });
+        if (!confirm(`¿Aplicar a la clase ${grupoActual} los pagos/cobros recurrentes que tocan hoy?`)) return;
+        const res = await fetch(`${API_BASE_URL}/admin/aplicar-recurrentes`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ grupo: grupoActual })
+        });
         const data = await res.json();
         const aplicados = data.aplicados || [];
         const totalTrabajos = data.total_trabajos || 0;
@@ -799,13 +931,10 @@
     }
 
     // ---------- ARRANQUE ----------
-    document.addEventListener('DOMContentLoaded', async () => {
-        // Primero el tarifario: la tabla de alumnos necesita la lista de trabajos para el desplegable
-        await cargarCatalogoAdmin();
-        loadClass();
-        cargarAvisosAdmin();
-        actualizarContadorRecurrentes();
-        cargarConfig();
+    document.addEventListener('DOMContentLoaded', () => {
+        // Carga la lista de clases, fija la clase activa y, a través de recargarTodo(),
+        // pinta alumnos, tarifario, avisos y config de esa clase.
+        cargarClases();
     });
 </script>
 </body>

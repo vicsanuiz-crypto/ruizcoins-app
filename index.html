@@ -18,7 +18,7 @@
         #login-screen h1 { color: #0fbcf9; margin-bottom: 10px; font-size: 32px; }
         #login-screen p { color: #808e9b; margin-bottom: 30px; }
         .login-box { background: #2c3e50; padding: 30px; border-radius: 20px; text-align: center; width: 80%; box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
-        .login-box input { width: 100%; padding: 15px; font-size: 24px; text-align: center; border-radius: 10px; border: 2px solid #3c40c6; margin-bottom: 20px; background: #1e272e; color: white; outline: none; }
+        .login-box input, .login-box select { width: 100%; padding: 15px; font-size: 24px; text-align: center; border-radius: 10px; border: 2px solid #3c40c6; margin-bottom: 20px; background: #1e272e; color: white; outline: none; box-sizing: border-box; }
         .btn-login { background: #0fbcf9; color: #1e272e; border: none; padding: 15px; width: 100%; border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer; }
 
         #login-error { color: #ff3f34; margin-top: 15px; font-weight: bold; display: none; }
@@ -103,9 +103,10 @@
         <h1>🏛️ RuizCoins</h1>
         <p>Banco Estudiantil</p>
         <div class="login-box">
-            <input type="number" id="login-id" placeholder="Tu ID Secreto" min="1">
+            <select id="login-clase"></select>
+            <input type="number" id="login-id" placeholder="Tu número" min="1">
             <button class="btn-login" onclick="attemptLogin()">Entrar</button>
-            <p id="login-error">❌ ID no encontrado</p>
+            <p id="login-error">❌ No encontrado</p>
         </div>
     </div>
 
@@ -185,7 +186,25 @@
 
 <script>
     let currentStudentID = null;
+    let currentGrupo = null;   // clase del alumno que ha entrado
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
+
+    // Añade ?grupo=... (de la clase del alumno) a una ruta GET
+    function conGrupo(path) {
+        const sep = path.includes('?') ? '&' : '?';
+        return `${API_BASE_URL}${path}${sep}grupo=${encodeURIComponent(currentGrupo || '')}`;
+    }
+
+    // Rellena el desplegable de clases en la pantalla de entrada
+    async function cargarClasesLogin() {
+        const sel = document.getElementById('login-clase');
+        try {
+            const clases = await (await fetch(`${API_BASE_URL}/grupos`)).json();
+            sel.innerHTML = clases.map(c => `<option value="${c}">${c}</option>`).join('');
+        } catch (e) {
+            sel.innerHTML = '<option value="">(sin conexión)</option>';
+        }
+    }
 
     function switchTab(tab) {
         document.getElementById('tab-home').style.display = tab === 'home' ? 'block' : 'none';
@@ -196,14 +215,17 @@
     }
 
     async function attemptLogin() {
-        const inputId = document.getElementById('login-id').value;
+        const clase = document.getElementById('login-clase').value;
+        const numero = document.getElementById('login-id').value;
         const errorMsg = document.getElementById('login-error');
-        if (!inputId) return;
+        if (!clase || !numero) return;
 
         try {
-            const response = await fetch(`${API_BASE_URL}/student/${inputId}`);
+            const response = await fetch(`${API_BASE_URL}/student/login?grupo=${encodeURIComponent(clase)}&numero=${encodeURIComponent(numero)}`);
             if (response.ok) {
-                currentStudentID = inputId;
+                const data = await response.json();
+                currentStudentID = data.id;     // id interno, para el resto de llamadas
+                currentGrupo = clase;           // clase elegida
                 errorMsg.style.display = 'none';
                 document.getElementById('login-screen').style.transform = 'translateY(-100%)';
 
@@ -223,6 +245,7 @@
 
     function logout() {
         currentStudentID = null;
+        currentGrupo = null;
         document.getElementById('login-id').value = '';
         document.getElementById('app-content').style.display = 'none';
         document.getElementById('login-screen').style.transform = 'translateY(0)';
@@ -232,6 +255,9 @@
     document.getElementById('login-id').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') attemptLogin();
     });
+
+    // Al abrir la app, cargamos la lista de clases en el desplegable de entrada
+    cargarClasesLogin();
 
     async function loadStudentData() {
         if (!currentStudentID) return;
@@ -246,7 +272,7 @@
         // Proyección de la caja fuerte según el interés y periodo configurados por el maestro
         let rateDec = 0.05, periodo = 'mes';
         try {
-            const cfg = await (await fetch(`${API_BASE_URL}/config`)).json();
+            const cfg = await (await fetch(conGrupo('/config'))).json();
             if (cfg.interes_rate) rateDec = parseFloat(cfg.interes_rate);
             if (cfg.interes_periodo) periodo = cfg.interes_periodo;
         } catch (e) {}
@@ -317,7 +343,7 @@
     }
 
     async function cargarAvisos() {
-        const res = await fetch(`${API_BASE_URL}/avisos`);
+        const res = await fetch(conGrupo('/avisos'));
         const avisos = await res.json();
         const lista = document.getElementById('listaAvisos');
         const caja = document.getElementById('cajaAvisos');
@@ -360,7 +386,7 @@
     }
 
     async function cargarCatalogo() {
-        const res = await fetch(`${API_BASE_URL}/catalogo`);
+        const res = await fetch(conGrupo('/catalogo'));
         const catalogo = await res.json();
         const gridGastos = document.getElementById('grid-gastos');
         const gridIngresos = document.getElementById('grid-ingresos');
