@@ -212,7 +212,7 @@
         const table = document.getElementById('student-list');
         table.innerHTML = `
             <tr>
-                <th>Nº</th><th>Nombre</th><th>Cargo</th>
+                <th>Nº</th><th title="Número secreto con el que el alumno inicia sesión (no cambia nunca)">🔑 ID</th><th>Nombre</th><th>Cargo</th>
                 <th>Saldo</th><th>Caja Fuerte</th><th>Trabajo</th><th>Acciones</th>
             </tr>`;
         students.forEach((s, idx) => {
@@ -228,6 +228,7 @@
                         <b>${idx + 1}</b>
                         <button class="btn-orden" title="Subir un puesto" onclick="moverAlumno(${s.id_alumno}, 'up')">▲</button><button class="btn-orden" title="Bajar un puesto" onclick="moverAlumno(${s.id_alumno}, 'down')">▼</button>
                     </td>
+                    <td title="ID secreto de acceso del alumno (el que escribe para entrar)"><b style="color:#0fbcf9; font-size:16px;">${s.id_alumno}</b></td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} RC</b></td>
