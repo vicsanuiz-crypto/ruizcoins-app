@@ -212,22 +212,25 @@
         const table = document.getElementById('student-list');
         table.innerHTML = `
             <tr>
-                <th title="Número del alumno y su ID de acceso. Es FIJO: no cambia al reordenar ni al borrar a otros. En el futuro podrá ser el CIAL / número de lista.">Nº</th><th>Nombre</th><th>Cargo</th>
+                <th title="Número de fila: posición fija (1, 2, 3...). NO se mueve al reordenar; siempre va de arriba abajo.">Nº</th>
+                <th title="Número / ID del alumno. Es suyo y viaja con él al reordenar. Es también su número de acceso. En el futuro podrá ser el CIAL / número de lista.">ID</th>
+                <th>Nombre</th><th>Cargo</th>
                 <th>Saldo</th><th>Caja Fuerte</th><th>Trabajo</th><th>Acciones</th>
             </tr>`;
-        students.forEach((s) => {
+        students.forEach((s, idx) => {
             const nombreEsc = (s.nombre || '').replace(/'/g, "\\'");
-            // El número mostrado es el id_alumno: el número PROPIO del alumno y su ID de
-            // acceso. Se RESPETA siempre — no es una posición. Al borrar o reordenar, cada
-            // alumno conserva su número (deja huecos a propósito; el nº pertenece al alumno).
-            // Las flechas ▲▼ solo cambian el ORDEN visual de la lista, nunca el número.
+            // Columna 1 "Nº" = número de FILA (idx+1): posición fija, NO se mueve.
+            //   Como repintamos tras reordenar, siempre queda 1,2,3... de arriba abajo.
+            // Columna 2 "ID" = id_alumno: el número PROPIO del alumno (y su acceso),
+            //   que viaja con él al reordenar. Las flechas mueven al alumno.
             table.innerHTML += `
-                <tr draggable="true" data-id="${s.id_alumno}" title="Arrastra para reordenar (no cambia el Nº del alumno)"
+                <tr draggable="true" data-id="${s.id_alumno}" title="Arrastra para reordenar (el Nº de fila es fijo; el ID viaja con el alumno)"
                     ondragstart="dragStart(event)" ondragover="dragOver(event)" ondrop="dropRow(event)" ondragend="dragEnd(event)">
                     <td class="col-orden">
-                        <b style="color:#0fbcf9; font-size:16px;">${s.id_alumno}</b>
-                        <button class="btn-orden" title="Subir un puesto en la lista" onclick="moverAlumno(${s.id_alumno}, 'up')">▲</button><button class="btn-orden" title="Bajar un puesto en la lista" onclick="moverAlumno(${s.id_alumno}, 'down')">▼</button>
+                        <b>${idx + 1}</b>
+                        <button class="btn-orden" title="Subir al alumno un puesto" onclick="moverAlumno(${s.id_alumno}, 'up')">▲</button><button class="btn-orden" title="Bajar al alumno un puesto" onclick="moverAlumno(${s.id_alumno}, 'down')">▼</button>
                     </td>
+                    <td title="Número/ID del alumno (con el que inicia sesión)"><b style="color:#0fbcf9; font-size:16px;">${s.id_alumno}</b></td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} RC</b></td>
