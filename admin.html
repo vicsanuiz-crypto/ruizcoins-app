@@ -230,7 +230,10 @@
                         <b>${idx + 1}</b>
                         <button class="btn-orden" title="Subir al alumno un puesto" onclick="moverAlumno(${s.id_alumno}, 'up')">▲</button><button class="btn-orden" title="Bajar al alumno un puesto" onclick="moverAlumno(${s.id_alumno}, 'down')">▼</button>
                     </td>
-                    <td title="Número/ID del alumno (con el que inicia sesión)"><b style="color:#0fbcf9; font-size:16px;">${s.id_alumno}</b></td>
+                    <td title="Número/ID del alumno (con el que inicia sesión)">
+                        <b style="color:#0fbcf9; font-size:16px;">${s.id_alumno}</b>
+                        <button class="btn-orden" title="Cambiar el número/ID de este alumno" onclick="cambiarNumeroAlumno(${s.id_alumno}, '${nombreEsc}')">✏️</button>
+                    </td>
                     <td>${s.nombre}</td>
                     <td>${s.cargo || '-'}</td>
                     <td><b>${s.balance.toFixed(1)} RC</b></td>
@@ -298,6 +301,28 @@
             body: JSON.stringify({ id_alumno: id, cantidad, concepto: concepto || 'Ajuste manual' })
         });
         loadClass();
+    }
+
+    // Cambia el número/ID de un alumno (su acceso). Sirve para asignar números de lista / CIAL.
+    async function cambiarNumeroAlumno(idActual, nombre) {
+        const nuevoStr = prompt(`Nuevo número/ID para ${nombre}\n(actual: ${idActual}). Es el número con el que el alumno inicia sesión.`, idActual);
+        if (nuevoStr === null) return;                 // canceló
+        const nuevo = parseInt(nuevoStr, 10);
+        if (isNaN(nuevo) || nuevo <= 0) return alert('Número no válido. Tiene que ser un entero mayor que 0.');
+        if (nuevo === idActual) return;                // sin cambios
+        try {
+            const res = await fetch(`${API_BASE_URL}/admin/student/${idActual}/set-numero`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ nuevo_id: nuevo })
+            });
+            const data = await res.json();
+            if (!res.ok || data.error) return alert('No se pudo cambiar el número:\n' + (data.error || `HTTP ${res.status}`));
+            alert(`✅ ${nombre} ahora tiene el número/ID ${nuevo}. Iniciará sesión con ${nuevo}.`);
+            loadClass();
+        } catch (err) {
+            alert('No se pudo conectar con el servidor (puede estar "despertando"). Inténtalo de nuevo en unos segundos.');
+        }
     }
 
     async function deleteStudent(id, nombre) {
