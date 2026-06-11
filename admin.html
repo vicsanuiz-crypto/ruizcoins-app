@@ -128,6 +128,7 @@
         <button class="btn-action btn-magic" style="padding:6px 12px; font-size:13px;" onclick="renombrarClase()">✏️ Renombrar</button>
         <button class="btn-action btn-nuclear" style="padding:6px 12px; font-size:13px;" onclick="borrarClase()">🗑️ Borrar clase</button>
         <span style="flex:1;"></span>
+        <button class="btn-action" style="padding:6px 12px; font-size:13px; background:#576574; color:#fff;" onclick="cambiarClaveAdmin()" title="Cambiar la clave de administración o restablecerla si la has olvidado (con la clave maestra)">🔑 Clave</button>
         <button class="btn-action" id="btn-modo" style="padding:6px 12px; font-size:13px; background:#e67e22; color:#fff;" onclick="toggleModoAvanzado()" title="Modo avanzado: decimales (céntimos) e impuestos (IRPF) que paga el alumno">⚙️ Modo: —</button>
     </div>
 
@@ -303,15 +304,40 @@
     const _fetchOriginal = window.fetch.bind(window);
     window.fetch = async (url, opts = {}) => {
         if (typeof url === 'string' && url.startsWith(API_BASE_URL)) {
-            opts.headers = Object.assign({}, opts.headers || {}, { 'X-Admin-Key': adminKey });
+            // La clave guardada va por defecto; si la llamada trae su propia
+            // X-Admin-Key (p. ej. el restablecimiento con la clave maestra), gana esa.
+            opts.headers = Object.assign({ 'X-Admin-Key': adminKey }, opts.headers || {});
             const res = await _fetchOriginal(url, opts);
-            if (res.status === 401) {
-                pedirClaveAdmin('🔑 Clave incorrecta o caducada. Escribe la clave de administración:');
+            if (res.status === 401 && !url.includes('/admin/cambiar-clave')) {
+                pedirClaveAdmin('🔑 Clave incorrecta o caducada. Escribe la clave de administración:\n(Si la has olvidado, usa el botón "🔑 Clave" de la barra de arriba.)');
             }
             return res;
         }
         return _fetchOriginal(url, opts);
     };
+
+    // Cambia la clave de administración. Sirve también para RESTABLECERLA si se
+    // olvida: en vez de la clave actual se escribe la CLAVE MAESTRA (la constante
+    // CLAVE_MAESTRA al principio de flask_app.py en PythonAnywhere).
+    async function cambiarClaveAdmin() {
+        const actual = prompt('🔑 Escribe la clave ACTUAL.\n\n¿La has olvidado? Escribe la CLAVE MAESTRA de recuperación (está al principio de flask_app.py, en PythonAnywhere).');
+        if (actual === null || !actual.trim()) return;
+        const nueva = prompt('Nueva clave de administración (mínimo 4 caracteres):');
+        if (nueva === null) return;
+        if (nueva.trim().length < 4) return alert('Demasiado corta (mínimo 4 caracteres). No se ha cambiado nada.');
+
+        const res = await fetch(`${API_BASE_URL}/admin/cambiar-clave`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-Admin-Key': actual.trim()},
+            body: JSON.stringify({ nueva: nueva.trim() })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) return alert(data.error || '❌ Clave actual/maestra incorrecta. No se ha cambiado nada.');
+
+        adminKey = nueva.trim();
+        localStorage.setItem('ruiz_admin_key', adminKey);
+        alert('✅ Clave cambiada y guardada en este navegador.\n\nSi usas el panel en otro ordenador, allí te pedirá la nueva.');
+    }
 
     // Copia en memoria del tarifario, para poder rellenar el valor en la Transacción Masiva
     let catalogoCache = [];

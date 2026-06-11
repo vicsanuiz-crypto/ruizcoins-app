@@ -39,7 +39,8 @@ Sin frameworks, sin build, sin base de datos externa: **coste de infraestructura
 
 ## 🔐 Seguridad
 
-- Las rutas de administración exigen una **clave** (cabecera `X-Admin-Key`), que el panel pide una vez y recuerda. Se cambia editando `ADMIN_KEY` en `flask_app.py`.
+- Las rutas de administración exigen una **clave** (cabecera `X-Admin-Key`), que el panel pide una vez y recuerda. Se cambia desde el propio panel (botón 🔑) y queda guardada en la base de datos.
+- **Recuperación de clave**: existe una **clave maestra** (constante `CLAVE_MAESTRA` en `flask_app.py`) que siempre funciona; con ella, el botón 🔑 permite restablecer la clave olvidada.
 - Los **precios de compra se validan en el servidor** (se ignora cualquier precio manipulado desde el navegador) y solo se venden artículos marcados comprables.
 - Texto escapado en las webs (anti-XSS básico).
 - **Protección de datos**: se recomienda registrar a los alumnos solo con nombre de pila o alias y su número de lista (minimización de datos, RGPD/LOPDGDD).
