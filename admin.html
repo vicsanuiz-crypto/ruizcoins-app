@@ -41,9 +41,18 @@
         .btn-nuclear { background: #c0392b; }
         .btn-add { background: #0fbcf9; color: #1e272e; padding: 10px 20px; font-size: 16px; }
 
-        .tarifario-columns { display: flex; gap: 15px; margin-top: 15px; }
-        .tarifario-col { flex: 1; background: #1e272e; padding: 12px; border-radius: 6px; }
-        .col-title { font-size: 14px; font-weight: bold; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #444; text-align: center; }
+        /* Cuadrícula del tarifario: cabeceras Gastos/Ingresos + 6 columnas de categorías */
+        .tarifa-headers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
+        .tarifa-headers div { text-align: center; font-weight: 800; padding: 9px; border-radius: 8px 8px 0 0; font-size: 15px; letter-spacing: 1px; }
+        .tarifa-head-gastos { background: rgba(231,76,60,.16); color: #e74c3c; border-bottom: 3px solid #e74c3c; }
+        .tarifa-head-ingresos { background: rgba(5,196,107,.13); color: #05c46b; border-bottom: 3px solid #05c46b; }
+        .tarifa-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-top: 10px; align-items: start; }
+        .tarifa-col { background: #1e272e; border-radius: 8px; padding: 8px; min-width: 0; }
+        .tarifa-col ul { list-style: none; padding: 0; margin: 0; }
+        .tarifa-col-title { display: flex; justify-content: center; align-items: center; gap: 6px; text-align: center; font-weight: bold; font-size: 12px; padding: 7px 4px; border-radius: 6px; margin-bottom: 8px; color: #fff; }
+        .col-vacia { color: #576574; font-size: 11px; text-align: center; padding: 8px 0; }
+        @media (max-width: 1000px) { .tarifa-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 600px) { .tarifa-grid { grid-template-columns: repeat(2, 1fr); } .tarifa-headers { display: none; } }
 
         /* Barra de acciones del tarifario (selección múltiple) */
         .tarifario-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; flex-wrap: wrap; gap: 8px; }
@@ -98,6 +107,20 @@
 
         .footer-version { text-align: center; color: #576574; font-size: 11px; margin-top: 30px; }
 
+        /* Pantalla de entrada del maestro (clave de administración) */
+        #key-screen { position: fixed; inset: 0; background: #1e272e; z-index: 600; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #key-screen.oculta { display: none; }
+        #key-screen h1 { color: #0fbcf9; font-size: 36px; margin: 0 0 6px; }
+        #key-screen .subtitulo { color: #808e9b; margin: 0 0 28px; }
+        .key-box { background: #2c3e50; padding: 30px; border-radius: 18px; width: 90%; max-width: 340px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
+        .key-box input { width: 100%; padding: 14px; font-size: 18px; text-align: center; border-radius: 10px; border: 2px solid #3c40c6; background: #1e272e; color: #fff; outline: none; margin-bottom: 14px; box-sizing: border-box; }
+        .key-box input:focus { border-color: #0fbcf9; }
+        .btn-key-entrar { width: 100%; background: #0fbcf9; color: #1e272e; border: none; padding: 13px; border-radius: 10px; font-size: 16px; font-weight: bold; cursor: pointer; }
+        .btn-key-entrar:hover { background: #4bcffa; }
+        #key-error { color: #ff3f34; font-weight: bold; display: none; margin: 12px 0 0; }
+        .key-olvido { background: none; border: none; color: #808e9b; font-size: 12px; margin-top: 16px; cursor: pointer; text-decoration: underline; }
+        .key-olvido:hover { color: #0fbcf9; }
+
         /* Modal de pago/multa: pestañas desplegables con conceptos del tarifario */
         .tx-det { border: 1px solid #34495e; border-radius: 6px; margin-bottom: 8px; background: #1e272e; }
         .tx-det summary { cursor: pointer; padding: 9px 12px; font-weight: bold; font-size: 13px; user-select: none; }
@@ -113,6 +136,18 @@
     </style>
 </head>
 <body>
+
+<!-- Pantalla de entrada del maestro: pide la clave de administración (como el login del alumno) -->
+<div id="key-screen">
+    <h1>🏛️ RuizCoins</h1>
+    <p class="subtitulo">Panel del maestro</p>
+    <div class="key-box">
+        <input type="password" id="key-input" placeholder="Clave de administración" autocomplete="current-password">
+        <button class="btn-key-entrar" onclick="entrarAdmin()">Entrar</button>
+        <p id="key-error">❌ Clave incorrecta</p>
+        <button class="key-olvido" onclick="cambiarClaveAdmin()">¿Has olvidado la clave?</button>
+    </div>
+</div>
 
 <div class="container">
     <div class="header-bar">
@@ -196,43 +231,53 @@
     </div>
 
     <div id="tab-mercado" class="tab-content">
-        <div style="display: flex; gap: 20px; align-items: flex-start;">
-            <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
-                <h3 style="color: #f1c40f;">📢 Tablón de Anuncios</h3>
-                <div style="display: flex; gap: 5px; margin-bottom: 15px;">
-                    <input type="text" id="nuevoAviso" placeholder="Ej: Mañana..." style="flex: 1; padding: 8px;">
-                    <button class="btn-magic" onclick="publicarAviso()">Publicar</button>
-                </div>
-                <ul id="admin-lista-avisos" style="list-style:none; padding:0;"></ul>
+        <!-- Tablón a lo ancho, arriba (como en el boceto) -->
+        <div style="padding: 20px; background: #2c3e50; border-radius: 8px; margin-bottom: 20px;">
+            <h3 style="color: #f1c40f; margin-top: 0;">📢 Tablón de Anuncios</h3>
+            <div style="display: flex; gap: 5px; margin-bottom: 12px;">
+                <input type="text" id="nuevoAviso" placeholder="Ej: Mañana..." style="flex: 1; padding: 8px;">
+                <button class="btn-magic" onclick="publicarAviso()">Publicar</button>
+            </div>
+            <ul id="admin-lista-avisos" style="list-style:none; padding:0; margin:0;"></ul>
+        </div>
+
+        <!-- Gestión del tarifario a lo ancho, con cuadrícula por categorías -->
+        <div style="padding: 20px; background: #2c3e50; border-radius: 8px;">
+            <h3 style="color: #0fbcf9; margin-top: 0;">🛒 Gestión del Tarifario</h3>
+            <div style="display: flex; gap: 5px; margin-bottom: 12px; flex-wrap: wrap;">
+                <input type="text" id="nombreRecurso" placeholder="Concepto" style="flex: 1; min-width:160px; padding: 8px;">
+                <select id="tipoRecurso" style="padding: 8px;"><option value="Gasto">Gasto (-)</option><option value="Ingreso">Ingreso (+)</option></select>
+                <input type="number" id="valorRecurso" placeholder="RC" style="width: 60px; padding: 8px;">
+                <label style="font-size: 10px; display:flex; align-items:center;">
+                    <input type="checkbox" id="esComprable" checked> Comprable
+                </label>
+                <label style="font-size: 10px; display:flex; align-items:center;" title="Solo para Ingresos: lo convierte en un sueldo asignable a un alumno. Recuerda ponerle una frecuencia.">
+                    <input type="checkbox" id="esTrabajo"> 💼 Trabajo
+                </label>
+                <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
+                <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
+                <button class="btn-action btn-nuclear" onclick="resetConceptos()">🗑️ Borrar todo el tarifario</button>
             </div>
 
-            <div style="flex: 1; padding: 20px; background: #2c3e50; border-radius: 8px;">
-                <h3 style="color: #0fbcf9;">🛒 Gestión del Tarifario</h3>
-                <div style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
-                    <input type="text" id="nombreRecurso" placeholder="Concepto" style="flex: 1; padding: 8px;">
-                    <select id="tipoRecurso" style="padding: 8px;"><option value="Gasto">Gasto (-)</option><option value="Ingreso">Ingreso (+)</option></select>
-                    <input type="number" id="valorRecurso" placeholder="RC" style="width: 60px; padding: 8px;">
-                    <label style="font-size: 10px; display:flex; align-items:center;">
-                        <input type="checkbox" id="esComprable" checked> Comprable
-                    </label>
-                    <label style="font-size: 10px; display:flex; align-items:center;" title="Solo para Ingresos: lo convierte en un sueldo asignable a un alumno. Recuerda ponerle una frecuencia.">
-                        <input type="checkbox" id="esTrabajo"> 💼 Trabajo
-                    </label>
-                    <button class="btn-magic" onclick="añadirRecurso()">Añadir</button>
-                    <button class="btn-action btn-danger" onclick="limpiarDuplicados()">🧹 Limpiar Duplicados</button>
-                    <button class="btn-action btn-nuclear" onclick="resetConceptos()">🗑️ Borrar todo el tarifario</button>
-                </div>
+            <!-- Barra de acciones para selección múltiple -->
+            <div class="tarifario-toolbar">
+                <label><input type="checkbox" id="chk-todos" onclick="toggleSeleccionTodo(this)"> Seleccionar todo</label>
+                <button class="btn-action btn-nuclear" onclick="borrarSeleccionados()">🗑️ Eliminar seleccionados</button>
+            </div>
 
-                <!-- NUEVO: barra de acciones para selección múltiple -->
-                <div class="tarifario-toolbar">
-                    <label><input type="checkbox" id="chk-todos" onclick="toggleSeleccionTodo(this)"> Seleccionar todo</label>
-                    <button class="btn-action btn-nuclear" onclick="borrarSeleccionados()">🗑️ Eliminar seleccionados</button>
-                </div>
-
-                <div class="tarifario-columns">
-                    <div class="tarifario-col"><div class="col-title" style="color: #e74c3c;">Gastos (-)</div><ul id="admin-lista-gastos" style="list-style:none; padding:0;"></ul></div>
-                    <div class="tarifario-col"><div class="col-title" style="color: #05c46b;">Ingresos (+)</div><ul id="admin-lista-ingresos" style="list-style:none; padding:0;"></ul></div>
-                </div>
+            <!-- Cabeceras GASTOS / INGRESOS -->
+            <div class="tarifa-headers">
+                <div class="tarifa-head-gastos">GASTOS (−)</div>
+                <div class="tarifa-head-ingresos">INGRESOS (+)</div>
+            </div>
+            <!-- Cuadrícula: 3 columnas de gastos + 3 de ingresos -->
+            <div class="tarifa-grid">
+                <div class="tarifa-col"><div class="tarifa-col-title" style="background:#e67e22;">🏛️ Impuestos <span class="cat-count" id="cnt-impuestos">0</span></div><ul id="col-impuestos"></ul></div>
+                <div class="tarifa-col"><div class="tarifa-col-title" style="background:#c0392b;">⚠️ Multas <span class="cat-count" id="cnt-multas">0</span></div><ul id="col-multas"></ul></div>
+                <div class="tarifa-col"><div class="tarifa-col-title" style="background:#9b59b6;">🛒 Consumibles <span class="cat-count" id="cnt-consumibles">0</span></div><ul id="col-consumibles"></ul></div>
+                <div class="tarifa-col"><div class="tarifa-col-title" style="background:#27ae60;">💰 Salario <span class="cat-count" id="cnt-salario">0</span></div><ul id="col-salario"></ul></div>
+                <div class="tarifa-col"><div class="tarifa-col-title" style="background:#2980b9;">💼 Empleos <span class="cat-count" id="cnt-empleos">0</span></div><ul id="col-empleos"></ul></div>
+                <div class="tarifa-col"><div class="tarifa-col-title" style="background:#7f8c8d;">📦 Otros <span class="cat-count" id="cnt-otros">0</span></div><ul id="col-otros"></ul></div>
             </div>
         </div>
     </div>
@@ -292,15 +337,42 @@
     // Se pide una vez y se recuerda en este navegador. Si el backend responde 401,
     // se vuelve a pedir (clave cambiada o incorrecta).
     let adminKey = localStorage.getItem('ruiz_admin_key') || '';
-    function pedirClaveAdmin(msg) {
-        const k = prompt(msg || '🔑 Clave de administración del panel:');
-        if (k !== null && k.trim()) {
-            adminKey = k.trim();
+
+    // Pantalla de entrada: se muestra si no hay clave guardada o si el backend
+    // responde 401 (clave cambiada/incorrecta).
+    function mostrarPantallaClave() {
+        document.getElementById('key-screen').classList.remove('oculta');
+        const inp = document.getElementById('key-input');
+        inp.value = '';
+        inp.focus();
+    }
+
+    // Comprueba la clave contra una ruta protegida (sin tocar datos)
+    async function validarClave(k) {
+        try {
+            const res = await _fetchOriginal(`${API_BASE_URL}/admin/students?grupo=__comprobacion__`,
+                { headers: { 'X-Admin-Key': k } });
+            return res.ok;
+        } catch (e) { return false; }
+    }
+
+    async function entrarAdmin() {
+        const k = document.getElementById('key-input').value.trim();
+        const err = document.getElementById('key-error');
+        if (!k) return;
+        if (await validarClave(k)) {
+            adminKey = k;
             localStorage.setItem('ruiz_admin_key', adminKey);
+            err.style.display = 'none';
+            document.getElementById('key-screen').classList.add('oculta');
+            cargarClases();
+        } else {
+            err.style.display = 'block';
         }
     }
-    // Envoltorio de fetch: añade la clave a todas las llamadas a la API y
-    // detecta el 401 para volver a pedirla.
+
+    // Envoltorio de fetch: añade la clave a todas las llamadas a la API y, si el
+    // backend responde 401, vuelve a mostrar la pantalla de entrada.
     const _fetchOriginal = window.fetch.bind(window);
     window.fetch = async (url, opts = {}) => {
         if (typeof url === 'string' && url.startsWith(API_BASE_URL)) {
@@ -309,7 +381,7 @@
             opts.headers = Object.assign({ 'X-Admin-Key': adminKey }, opts.headers || {});
             const res = await _fetchOriginal(url, opts);
             if (res.status === 401 && !url.includes('/admin/cambiar-clave')) {
-                pedirClaveAdmin('🔑 Clave incorrecta o caducada. Escribe la clave de administración:\n(Si la has olvidado, usa el botón "🔑 Clave" de la barra de arriba.)');
+                mostrarPantallaClave();
             }
             return res;
         }
@@ -337,6 +409,9 @@
         adminKey = nueva.trim();
         localStorage.setItem('ruiz_admin_key', adminKey);
         alert('✅ Clave cambiada y guardada en este navegador.\n\nSi usas el panel en otro ordenador, allí te pedirá la nueva.');
+        // Si venimos de la pantalla de entrada (clave olvidada), entramos directamente
+        document.getElementById('key-screen').classList.add('oculta');
+        cargarClases();
     }
 
     // Copia en memoria del tarifario, para poder rellenar el valor en la Transacción Masiva
@@ -868,8 +943,26 @@
         Empleos:     { icono: '💼', color: '#0fbcf9' },
         Otros:       { icono: '📦', color: '#808e9b' },
     };
-    const ORDEN_GASTOS = ['Impuestos', 'Multas', 'Consumibles', 'Pupitres', 'Otros'];
-    const ORDEN_INGRESOS = ['Salario', 'Empleos', 'Otros'];
+    // "Imagen" (emoji) de un concepto, por palabras clave de su nombre.
+    // Si ninguna encaja, usa el icono de su categoría.
+    function emojiDe(c) {
+        const n = (c.concepto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const mapa = [
+            ['play', '🎮'], ['ps5', '🎮'], ['consola', '🎮'], ['switch', '🕹️'], ['videojuego', '🕹️'],
+            ['gt6', '🏎️'], ['fifa', '⚽'], ['bici', '🚲'], ['patin', '🛴'], ['movil', '📱'],
+            ['tablet', '📱'], ['auricular', '🎧'], ['balon', '⚽'], ['futbol', '⚽'], ['lego', '🧱'],
+            ['cine', '🎬'], ['chuche', '🍬'], ['golosina', '🍬'], ['agua', '💧'], ['comida', '🍎'],
+            ['bano', '🚽'], ['hielo', '🧊'], ['pupitre', '🪑'], ['luz', '💡'], ['luces', '💡'],
+            ['basura', '♻️'], ['papelera', '♻️'], ['reciclaje', '♻️'], ['suelo y mesas', '🧹'],
+            ['suelo', '🏠'], ['banquero', '🏦'], ['cartero', '📬'], ['bibliotec', '📚'],
+            ['pizarra', '🖍️'], ['cargar', '🔌'], ['fila', '🚶'], ['proyector', '📽️'],
+            ['mediador', '🤝'], ['inspector', '🕵️'], ['auditor', '🧾'], ['cronista', '📷'],
+            ['fotograf', '📷'], ['cronometr', '⏱️'], ['tutor', '🎓'], ['weather', '🌤️'],
+            ['repartidor', '📦'], ['percha', '🧥'], ['abrigo', '🧥'], ['ventana', '🪟'], ['lapic', '✏️'],
+        ];
+        for (const [k, e] of mapa) if (n.includes(k)) return e;
+        return (CATS[categoriaDe(c)] || CATS.Otros).icono;
+    }
 
     // HTML de un concepto del tarifario (checkbox + botones de acción)
     function itemRecursoHTML(c) {
@@ -877,7 +970,8 @@
         const color = isGasto ? '#e74c3c' : '#05c46b';
         const signo = isGasto ? '-' : '+';
         const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
-        const icono = c.es_comprable ? (isGasto ? '🛒' : '⭐') : '🔒';
+        // Emoji "imagen" del artículo + candado si es solo informativo
+        const icono = emojiDe(c) + (c.es_comprable ? '' : '🔒');
 
         const btnToggle = `<button class="btn-toggle ${c.es_comprable ? 'is-comprable' : 'is-info'}"
                     title="${c.es_comprable ? 'Activo. Pulsa para hacerlo solo informativo.' : 'Solo informativo. Pulsa para activarlo.'}"
@@ -919,25 +1013,29 @@
         </li>`;
     }
 
-    // Pinta una columna (Gastos o Ingresos) agrupada por categorías, con cabecera y contador
-    function renderColumnaTarifario(catalogo, tipo, orden) {
-        const grupos = {};
-        catalogo.filter(c => c.tipo === tipo).forEach(c => {
+    // Reparte el catálogo en las 6 columnas de la cuadrícula:
+    //   Gastos  -> Impuestos | Multas | Consumibles (incluye Pupitres y otros gastos)
+    //   Ingresos-> Salario   | Empleos | Otros
+    function renderTarifarioGrid(catalogo) {
+        const cols = { impuestos: [], multas: [], consumibles: [], salario: [], empleos: [], otros: [] };
+        catalogo.forEach(c => {
             const cat = categoriaDe(c);
-            (grupos[cat] = grupos[cat] || []).push(c);
+            if (c.tipo === 'Gasto') {
+                if (cat === 'Impuestos') cols.impuestos.push(c);
+                else if (cat === 'Multas') cols.multas.push(c);
+                else cols.consumibles.push(c);          // Consumibles + Pupitres + otros gastos
+            } else {
+                if (cat === 'Salario') cols.salario.push(c);
+                else if (cat === 'Empleos') cols.empleos.push(c);
+                else cols.otros.push(c);                // otros ingresos
+            }
         });
-        let html = '';
-        orden.forEach(cat => {
-            if (!grupos[cat]) return;
-            const meta = CATS[cat];
-            html += `<li class="cat-header" style="border-left-color:${meta.color};">
-                        <span>${meta.icono} ${cat}</span><span class="cat-count">${grupos[cat].length}</span>
-                     </li>`;
-            grupos[cat]
+        for (const [nombre, lista] of Object.entries(cols)) {
+            document.getElementById(`col-${nombre}`).innerHTML = lista
                 .sort((a, b) => (a.concepto || '').localeCompare(b.concepto || '', 'es'))
-                .forEach(c => { html += itemRecursoHTML(c); });
-        });
-        return html;
+                .map(itemRecursoHTML).join('') || '<li class="col-vacia">— vacío —</li>';
+            document.getElementById(`cnt-${nombre}`).textContent = lista.length;
+        }
     }
 
     async function cargarCatalogoAdmin() {
@@ -951,10 +1049,7 @@
         const chkTodos = document.getElementById('chk-todos');
         if (chkTodos) chkTodos.checked = false;
 
-        document.getElementById('admin-lista-gastos').innerHTML =
-            renderColumnaTarifario(catalogo, 'Gasto', ORDEN_GASTOS) || '<li style="color:gray; font-size:12px;">Sin gastos.</li>';
-        document.getElementById('admin-lista-ingresos').innerHTML =
-            renderColumnaTarifario(catalogo, 'Ingreso', ORDEN_INGRESOS) || '<li style="color:gray; font-size:12px;">Sin ingresos.</li>';
+        renderTarifarioGrid(catalogo);
 
         // Si la tabla de alumnos ya está pintada, refrescamos sus desplegables de
         // trabajo (la lista de trabajos pudo cambiar al añadir/marcar/borrar conceptos).
@@ -1226,11 +1321,18 @@
 
     // ---------- ARRANQUE ----------
     document.addEventListener('DOMContentLoaded', () => {
-        // Primero la clave de administración (si no está guardada en este navegador)
-        if (!adminKey) pedirClaveAdmin();
-        // Carga la lista de clases, fija la clase activa y, a través de recargarTodo(),
-        // pinta alumnos, tarifario, avisos y config de esa clase.
-        cargarClases();
+        // Entrar con la tecla Enter en la pantalla de clave
+        document.getElementById('key-input').addEventListener('keypress', e => {
+            if (e.key === 'Enter') entrarAdmin();
+        });
+        if (adminKey) {
+            // Clave ya guardada en este navegador: entramos directos. Si hubiera
+            // dejado de ser válida, el primer 401 volverá a mostrar la pantalla.
+            document.getElementById('key-screen').classList.add('oculta');
+            cargarClases();
+        } else {
+            mostrarPantallaClave();
+        }
     });
 </script>
 </body>

@@ -70,15 +70,24 @@
         .market-header h2 { color: #2c3e50; }
         .market-header p { color: #7f8c8d; font-size: 14px; margin-top: 5px; }
 
-        .market-columns { display: flex; gap: 10px; }
-        .market-col { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+        /* Tarifario por categorías: cabeceras Gastos/Ingresos + columnas de colores */
+        .mk-head { text-align: center; font-weight: 800; padding: 8px; border-radius: 10px; margin: 14px 0 8px; font-size: 14px; letter-spacing: 1px; }
+        .mk-head-gastos { background: #fdecea; color: #e74c3c; border: 2px solid #e74c3c; }
+        .mk-head-ingresos { background: #eafaf1; color: #27ae60; border: 2px solid #2ecc71; }
+        .mk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; align-items: start; }
+        .mk-col { background: #e8eef4; border-radius: 12px; padding: 6px; min-width: 0; }
+        .mk-col-title { text-align: center; font-size: 10px; font-weight: 800; padding: 6px 2px; border-radius: 8px; color: #fff; margin-bottom: 6px; letter-spacing: .3px; }
+        .t-imp { background: #e67e22; } .t-mul { background: #e74c3c; } .t-con { background: #9b59b6; }
+        .t-sal { background: #27ae60; } .t-emp { background: #3498db; } .t-otr { background: #95a5a6; }
+        .item-emoji { font-size: 28px; line-height: 1.1; margin-bottom: 4px; }
+        .mk-vacio { text-align: center; color: #95a5a6; font-size: 10px; padding: 8px 0; }
 
         .col-title { text-align: center; font-size: 15px; margin-bottom: 10px; font-weight: bold; padding-bottom: 5px; }
         .title-gastos { color: var(--primary-red); border-bottom: 2px solid var(--primary-red); }
         .title-ingresos { color: var(--primary-green); border-bottom: 2px solid var(--primary-green); }
 
-        .market-item { background: white; border-radius: 12px; padding: 12px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #eee; }
-        .item-info h4 { margin-bottom: 8px; color: #2c3e50; font-size: 13px; }
+        .market-item { background: white; border-radius: 12px; padding: 9px 6px; margin-bottom: 6px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        .item-info h4 { margin-bottom: 6px; color: #2c3e50; font-size: 11px; }
 
         .btn-buy { background: var(--primary-red); color: white; border: none; padding: 8px; width: 100%; border-radius: 8px; font-weight: bold; font-size: 12px; cursor: pointer; }
         .badge-earn { background: #e8f8f5; color: var(--primary-green); padding: 8px; border-radius: 8px; font-weight: bold; font-size: 12px; border: 1px solid var(--primary-green); }
@@ -92,11 +101,12 @@
         .sub-grupo.sub-info { color: #95a5a6; border-bottom-color: #e8ecef; }
 
         /* --- BARRA DE NAVEGACIÓN INFERIOR --- */
-        .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 15px 0; border-top: 1px solid #eee; border-radius: 20px 20px 0 0; z-index: 100; box-shadow: 0 -5px 15px rgba(0,0,0,0.05); }
-        .nav-item { color: #bdc3c7; text-align: center; cursor: pointer; transition: 0.3s; width: 50%; }
-        .nav-item i { font-size: 20px; margin-bottom: 5px; display: block; }
+        /* Menú inferior RESALTADO: borde azul, sombra fuerte y pestaña activa en píldora */
+        .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; background: #2c3e50; display: flex; justify-content: space-around; align-items: center; gap: 8px; padding: 10px 12px; border-top: 3px solid #3498db; border-radius: 20px 20px 0 0; z-index: 100; box-shadow: 0 -6px 18px rgba(0,0,0,0.25); box-sizing: border-box; }
+        .nav-item { color: #aab7c4; text-align: center; cursor: pointer; transition: 0.25s; flex: 1; padding: 8px 0; border-radius: 14px; }
+        .nav-item i { font-size: 21px; margin-bottom: 4px; display: block; }
         .nav-item span { font-size: 12px; font-weight: bold; }
-        .nav-item.active { color: #3498db; }
+        .nav-item.active { color: #fff; background: #3498db; box-shadow: 0 3px 8px rgba(52,152,219,0.45); }
     </style>
 </head>
 <body>
@@ -166,16 +176,18 @@
                     <p>Compra privilegios o consulta cómo ganar RC.</p>
                 </div>
 
-                <div class="market-columns">
-                    <div class="market-col">
-                        <div class="col-title title-gastos">Comprar (-)</div>
-                        <div id="grid-gastos"></div>
-                    </div>
+                <div class="mk-head mk-head-gastos">GASTOS (−)</div>
+                <div class="mk-grid">
+                    <div class="mk-col"><div class="mk-col-title t-imp">🏛️ Impuestos</div><div id="mk-impuestos"></div></div>
+                    <div class="mk-col"><div class="mk-col-title t-mul">⚠️ Multas</div><div id="mk-multas"></div></div>
+                    <div class="mk-col"><div class="mk-col-title t-con">🛒 Consumibles</div><div id="mk-consumibles"></div></div>
+                </div>
 
-                    <div class="market-col">
-                        <div class="col-title title-ingresos">Ganar (+)</div>
-                        <div id="grid-ingresos"></div>
-                    </div>
+                <div class="mk-head mk-head-ingresos">INGRESOS (+)</div>
+                <div class="mk-grid">
+                    <div class="mk-col"><div class="mk-col-title t-sal">💰 Salario</div><div id="mk-salario"></div></div>
+                    <div class="mk-col"><div class="mk-col-title t-emp">💼 Empleos</div><div id="mk-empleos"></div></div>
+                    <div class="mk-col"><div class="mk-col-title t-otr">📦 Otros</div><div id="mk-otros"></div></div>
                 </div>
             </div>
         </div>
@@ -451,9 +463,9 @@
         const contenido = esComprable
             ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${dec(c.valor)} RC</button>`
             : `<div class="badge-fixed">-${dec(c.valor)} RC<small>Informativo</small></div>`;
-        const icono = esComprable ? '🛒' : '🔒';
         return `<div class="market-item">
-                    <div class="item-info"><h4>${icono} ${esc(c.concepto)}</h4></div>
+                    <div class="item-emoji">${emojiDe(c)}</div>
+                    <div class="item-info"><h4>${esc(c.concepto)}${esComprable ? '' : ' 🔒'}</h4></div>
                     ${contenido}
                 </div>`;
     }
@@ -463,9 +475,9 @@
         const contenido = esComprable
             ? `<div class="badge-earn">+${dec(c.valor)} RC</div>`
             : `<div class="badge-fixed">+${dec(c.valor)} RC<small>Informativo</small></div>`;
-        const icono = esComprable ? '⭐' : '🔒';
         return `<div class="market-item">
-                    <div class="item-info"><h4>${icono} ${esc(c.concepto)}</h4></div>
+                    <div class="item-emoji">${emojiDe(c)}</div>
+                    <div class="item-info"><h4>${esc(c.concepto)}${esComprable ? '' : ' 🔒'}</h4></div>
                     ${contenido}
                 </div>`;
     }
@@ -481,39 +493,54 @@
         if (c.tipo === 'Gasto' && c.es_comprable) return '🛒 Consumibles';
         return '📦 Otros';
     }
-    const ORDEN_GASTOS = ['🛒 Consumibles', '🪑 Pupitres', '🏛️ Impuestos', '⚠️ Multas', '📦 Otros'];
-    const ORDEN_INGRESOS = ['💰 Salario', '💼 Empleos', '📦 Otros'];
-
-    // Pinta una columna del mercado agrupada por categorías
-    function renderColumnaMercado(catalogo, tipo, orden, tarjeta) {
-        const grupos = {};
-        catalogo.filter(c => c.tipo === tipo).forEach(c => {
-            const cat = categoriaDe(c);
-            (grupos[cat] = grupos[cat] || []).push(c);
-        });
-        let html = '';
-        orden.forEach(cat => {
-            if (!grupos[cat]) return;
-            html += `<div class="sub-grupo">${cat}</div>`;
-            grupos[cat]
-                .sort((a, b) => (a.concepto || '').localeCompare(b.concepto || '', 'es'))
-                .forEach(c => {
-                    const esComprable = c.hasOwnProperty('es_comprable') ? c.es_comprable : 1;
-                    html += tarjeta(c, esComprable);
-                });
-        });
-        return html;
+    // "Imagen" (emoji) de un artículo, por palabras clave de su nombre.
+    // Si ninguna encaja, usa el emoji de su categoría.
+    function emojiDe(c) {
+        const n = (c.concepto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        const mapa = [
+            ['play', '🎮'], ['ps5', '🎮'], ['consola', '🎮'], ['switch', '🕹️'], ['videojuego', '🕹️'],
+            ['gt6', '🏎️'], ['fifa', '⚽'], ['bici', '🚲'], ['patin', '🛴'], ['movil', '📱'],
+            ['tablet', '📱'], ['auricular', '🎧'], ['balon', '⚽'], ['futbol', '⚽'], ['lego', '🧱'],
+            ['cine', '🎬'], ['chuche', '🍬'], ['golosina', '🍬'], ['agua', '💧'], ['comida', '🍎'],
+            ['bano', '🚽'], ['hielo', '🧊'], ['pupitre', '🪑'], ['luz', '💡'], ['luces', '💡'],
+            ['basura', '♻️'], ['papelera', '♻️'], ['reciclaje', '♻️'], ['suelo y mesas', '🧹'],
+            ['suelo', '🏠'], ['banquero', '🏦'], ['cartero', '📬'], ['bibliotec', '📚'],
+            ['pizarra', '🖍️'], ['cargar', '🔌'], ['fila', '🚶'], ['proyector', '📽️'],
+            ['mediador', '🤝'], ['inspector', '🕵️'], ['auditor', '🧾'], ['cronista', '📷'],
+            ['fotograf', '📷'], ['cronometr', '⏱️'], ['tutor', '🎓'], ['weather', '🌤️'],
+            ['repartidor', '📦'], ['percha', '🧥'], ['abrigo', '🧥'], ['ventana', '🪟'], ['lapic', '✏️'],
+        ];
+        for (const [k, e] of mapa) if (n.includes(k)) return e;
+        return categoriaDe(c).split(' ')[0];   // el emoji de su categoría
     }
 
+    // Reparte el tarifario en las 6 columnas de la cuadrícula (como el boceto):
+    //   Gastos  -> Impuestos | Multas | Consumibles (incluye Pupitres y otros)
+    //   Ingresos-> Salario   | Empleos | Otros
     async function cargarCatalogo() {
         const res = await fetch(conGrupo('/catalogo'));
         const catalogo = await res.json();
-        document.getElementById('grid-gastos').innerHTML =
-            renderColumnaMercado(catalogo, 'Gasto', ORDEN_GASTOS, tarjetaGasto)
-            || '<p style="font-size:11px; color:gray; text-align:center;">No hay gastos.</p>';
-        document.getElementById('grid-ingresos').innerHTML =
-            renderColumnaMercado(catalogo, 'Ingreso', ORDEN_INGRESOS, tarjetaIngreso)
-            || '<p style="font-size:11px; color:gray; text-align:center;">No hay tareas.</p>';
+        const cols = { impuestos: [], multas: [], consumibles: [], salario: [], empleos: [], otros: [] };
+        catalogo.forEach(c => {
+            const cat = categoriaDe(c);
+            if (c.tipo === 'Gasto') {
+                if (cat === '🏛️ Impuestos') cols.impuestos.push(c);
+                else if (cat === '⚠️ Multas') cols.multas.push(c);
+                else cols.consumibles.push(c);
+            } else {
+                if (cat === '💰 Salario') cols.salario.push(c);
+                else if (cat === '💼 Empleos') cols.empleos.push(c);
+                else cols.otros.push(c);
+            }
+        });
+        for (const [nombre, lista] of Object.entries(cols)) {
+            const tarjeta = (nombre === 'impuestos' || nombre === 'multas' || nombre === 'consumibles')
+                ? tarjetaGasto : tarjetaIngreso;
+            document.getElementById(`mk-${nombre}`).innerHTML = lista
+                .sort((a, b) => (a.concepto || '').localeCompare(b.concepto || '', 'es'))
+                .map(c => tarjeta(c, c.hasOwnProperty('es_comprable') ? c.es_comprable : 1))
+                .join('') || '<div class="mk-vacio">— vacío —</div>';
+        }
     }
 
     async function comprarArticulo(itemName, price) {
