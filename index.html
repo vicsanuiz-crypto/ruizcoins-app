@@ -1,9 +1,13 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RuizCoins - Student Dashboard</title>
+    <!-- Evita que el navegador se quede con una versión vieja en caché -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>RuizCoins - Banco del Alumno</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -435,14 +439,20 @@
     }
 
     // Tarjeta de un GASTO (comprable -> botón rojo; informativo -> etiqueta gris).
+    // Escapa texto para mostrarlo como HTML (evita que un concepto con <> rompa la página)
+    function esc(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     function tarjetaGasto(c, esComprable) {
         const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
         const contenido = esComprable
-            ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${c.valor} RC</button>`
-            : `<div class="badge-fixed">-${c.valor} RC<small>Informativo</small></div>`;
+            ? `<button class="btn-buy" onclick="comprarArticulo('${conceptoEsc}', ${c.valor})">${dec(c.valor)} RC</button>`
+            : `<div class="badge-fixed">-${dec(c.valor)} RC<small>Informativo</small></div>`;
         const icono = esComprable ? '🛒' : '🔒';
         return `<div class="market-item">
-                    <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
+                    <div class="item-info"><h4>${icono} ${esc(c.concepto)}</h4></div>
                     ${contenido}
                 </div>`;
     }
@@ -450,52 +460,59 @@
     // Tarjeta de un INGRESO (activo -> badge verde; informativo -> etiqueta gris).
     function tarjetaIngreso(c, esComprable) {
         const contenido = esComprable
-            ? `<div class="badge-earn">+${c.valor} RC</div>`
-            : `<div class="badge-fixed">+${c.valor} RC<small>Informativo</small></div>`;
+            ? `<div class="badge-earn">+${dec(c.valor)} RC</div>`
+            : `<div class="badge-fixed">+${dec(c.valor)} RC<small>Informativo</small></div>`;
         const icono = esComprable ? '⭐' : '🔒';
         return `<div class="market-item">
-                    <div class="item-info"><h4>${icono} ${c.concepto}</h4></div>
+                    <div class="item-info"><h4>${icono} ${esc(c.concepto)}</h4></div>
                     ${contenido}
                 </div>`;
+    }
+
+    // Categoría/especialidad de un concepto (igual que en el panel del maestro)
+    function categoriaDe(c) {
+        const n = (c.concepto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); // sin tildes
+        if (c.es_trabajo) return '💼 Empleos';
+        if (n.startsWith('impuesto')) return '🏛️ Impuestos';
+        if (n.startsWith('multa')) return '⚠️ Multas';
+        if (n.startsWith('salario') || n.startsWith('sueldo')) return '💰 Salario';
+        if (n.startsWith('pupitre')) return '🪑 Pupitres';
+        if (c.tipo === 'Gasto' && c.es_comprable) return '🛒 Consumibles';
+        return '📦 Otros';
+    }
+    const ORDEN_GASTOS = ['🛒 Consumibles', '🪑 Pupitres', '🏛️ Impuestos', '⚠️ Multas', '📦 Otros'];
+    const ORDEN_INGRESOS = ['💰 Salario', '💼 Empleos', '📦 Otros'];
+
+    // Pinta una columna del mercado agrupada por categorías
+    function renderColumnaMercado(catalogo, tipo, orden, tarjeta) {
+        const grupos = {};
+        catalogo.filter(c => c.tipo === tipo).forEach(c => {
+            const cat = categoriaDe(c);
+            (grupos[cat] = grupos[cat] || []).push(c);
+        });
+        let html = '';
+        orden.forEach(cat => {
+            if (!grupos[cat]) return;
+            html += `<div class="sub-grupo">${cat}</div>`;
+            grupos[cat]
+                .sort((a, b) => (a.concepto || '').localeCompare(b.concepto || '', 'es'))
+                .forEach(c => {
+                    const esComprable = c.hasOwnProperty('es_comprable') ? c.es_comprable : 1;
+                    html += tarjeta(c, esComprable);
+                });
+        });
+        return html;
     }
 
     async function cargarCatalogo() {
         const res = await fetch(conGrupo('/catalogo'));
         const catalogo = await res.json();
-        const gridGastos = document.getElementById('grid-gastos');
-        const gridIngresos = document.getElementById('grid-ingresos');
-
-        // Separamos en grupos: comprables/activos vs. solo informativos
-        const gastosComprables = [], gastosInfo = [], ingresosActivos = [], ingresosInfo = [];
-        catalogo.forEach(c => {
-            const esComprable = c.hasOwnProperty('es_comprable') ? c.es_comprable : 1;
-            if (c.tipo === 'Gasto') {
-                (esComprable ? gastosComprables : gastosInfo).push(c);
-            } else {
-                (esComprable ? ingresosActivos : ingresosInfo).push(c);
-            }
-        });
-
-        // --- Columna COMPRAR (gastos): comprables arriba, informativos debajo ---
-        let htmlGastos = '';
-        if (gastosComprables.length) {
-            htmlGastos += '<div class="sub-grupo">🛒 Puedes comprar</div>';
-            gastosComprables.forEach(c => htmlGastos += tarjetaGasto(c, 1));
-        }
-        if (gastosInfo.length) {
-            htmlGastos += '<div class="sub-grupo sub-info">🔒 Solo informativo</div>';
-            gastosInfo.forEach(c => htmlGastos += tarjetaGasto(c, 0));
-        }
-        gridGastos.innerHTML = htmlGastos || '<p style="font-size:11px; color:gray; text-align:center;">No hay gastos.</p>';
-
-        // --- Columna GANAR (ingresos): activos arriba, informativos debajo ---
-        let htmlIngresos = '';
-        ingresosActivos.forEach(c => htmlIngresos += tarjetaIngreso(c, 1));
-        if (ingresosInfo.length) {
-            htmlIngresos += '<div class="sub-grupo sub-info">🔒 Solo informativo</div>';
-            ingresosInfo.forEach(c => htmlIngresos += tarjetaIngreso(c, 0));
-        }
-        gridIngresos.innerHTML = htmlIngresos || '<p style="font-size:11px; color:gray; text-align:center;">No hay tareas.</p>';
+        document.getElementById('grid-gastos').innerHTML =
+            renderColumnaMercado(catalogo, 'Gasto', ORDEN_GASTOS, tarjetaGasto)
+            || '<p style="font-size:11px; color:gray; text-align:center;">No hay gastos.</p>';
+        document.getElementById('grid-ingresos').innerHTML =
+            renderColumnaMercado(catalogo, 'Ingreso', ORDEN_INGRESOS, tarjetaIngreso)
+            || '<p style="font-size:11px; color:gray; text-align:center;">No hay tareas.</p>';
     }
 
     async function comprarArticulo(itemName, price) {

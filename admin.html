@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,7 +48,16 @@
         /* Barra de acciones del tarifario (selección múltiple) */
         .tarifario-toolbar { display: flex; justify-content: space-between; align-items: center; margin: 10px 0; flex-wrap: wrap; gap: 8px; }
         .tarifario-toolbar label { font-size: 12px; display: flex; align-items: center; gap: 6px; cursor: pointer; }
-        .item-recurso { background: #1e272e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; flex-direction: column; gap: 6px; }
+
+        /* Cabeceras de categoría (Impuestos, Multas, Consumibles, Empleos...) */
+        .cat-header { display: flex; justify-content: space-between; align-items: center; background: #2c3e50;
+                      border-left: 4px solid #808e9b; border-radius: 6px; padding: 7px 10px; margin: 16px 0 6px;
+                      font-weight: bold; font-size: 13px; color: #fff; list-style: none; }
+        .cat-header:first-child { margin-top: 0; }
+        .cat-count { background: #1e272e; color: #808e9b; border-radius: 10px; padding: 1px 9px; font-size: 11px; }
+
+        .item-recurso { background: #1e272e; padding: 8px; margin-bottom: 5px; border-radius: 5px; display: flex; flex-direction: column; gap: 6px; border: 1px solid #2c3e50; transition: border-color 0.15s; }
+        .item-recurso:hover { border-color: #3c40c6; }
         .item-recurso .item-label { display: flex; align-items: center; gap: 8px; flex: 1; cursor: pointer; }
         .item-recurso input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
         .item-acciones { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
@@ -93,7 +102,7 @@
 <div class="container">
     <div class="header-bar">
         <h1>🏛️ Central Bank (Admin)</h1>
-        <button class="btn-action btn-add" onclick="addStudent()">➕ Add Pupil</button>
+        <button class="btn-action btn-add" onclick="addStudent()">➕ Añadir alumno</button>
     </div>
 
     <!-- Selector de CLASE: todo lo que se ve abajo (alumnos, tarifario, avisos) es de la clase elegida -->
@@ -422,8 +431,8 @@
                         <b style="color:#0fbcf9; font-size:16px;">${s.numero}</b>
                         <button class="btn-orden" title="Cambiar el número de lista de este alumno" onclick="cambiarNumeroAlumno(${s.id_alumno}, ${s.numero}, '${nombreEsc}')">✏️</button>
                     </td>
-                    <td>${s.nombre}</td>
-                    <td>${s.cargo || '-'}</td>
+                    <td>${esc(s.nombre)}</td>
+                    <td>${esc(s.cargo || '-')}</td>
                     <td><b>${dec(s.balance)} RC</b></td>
                     <td>${dec(s.vault_balance)} RC</td>
                     <td><select class="sel-trabajo" title="Trabajo del alumno (se paga solo en su periodo)"
@@ -652,7 +661,7 @@
         avisos.forEach(a => {
             lista.innerHTML += `
                 <li style="background:#1e272e; padding:8px; margin-bottom:5px; border-radius:5px; display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:12px;">${a.mensaje}</span>
+                    <span style="font-size:12px;">${esc(a.mensaje)}</span>
                     <button class="btn-action btn-nuclear" onclick="borrarAviso(${a.id})">🗑️</button>
                 </li>`;
         });
@@ -677,74 +686,119 @@
     }
 
     // ---------- TARIFARIO ----------
+    // Escapa texto para mostrarlo como HTML (evita que un nombre con <> rompa la página)
+    function esc(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    // Categoría/especialidad de un concepto, deducida de sus marcas y su nombre.
+    function categoriaDe(c) {
+        const n = (c.concepto || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); // sin tildes
+        if (c.es_trabajo) return 'Empleos';
+        if (n.startsWith('impuesto')) return 'Impuestos';
+        if (n.startsWith('multa')) return 'Multas';
+        if (n.startsWith('salario') || n.startsWith('sueldo')) return 'Salario';
+        if (n.startsWith('pupitre')) return 'Pupitres';
+        if (c.tipo === 'Gasto' && c.es_comprable) return 'Consumibles';
+        return 'Otros';
+    }
+    const CATS = {
+        Impuestos:   { icono: '🏛️', color: '#e67e22' },
+        Multas:      { icono: '⚠️', color: '#ff3f34' },
+        Consumibles: { icono: '🛒', color: '#9b59b6' },
+        Pupitres:    { icono: '🪑', color: '#f1c40f' },
+        Salario:     { icono: '💰', color: '#05c46b' },
+        Empleos:     { icono: '💼', color: '#0fbcf9' },
+        Otros:       { icono: '📦', color: '#808e9b' },
+    };
+    const ORDEN_GASTOS = ['Impuestos', 'Multas', 'Consumibles', 'Pupitres', 'Otros'];
+    const ORDEN_INGRESOS = ['Salario', 'Empleos', 'Otros'];
+
+    // HTML de un concepto del tarifario (checkbox + botones de acción)
+    function itemRecursoHTML(c) {
+        const isGasto = c.tipo === 'Gasto';
+        const color = isGasto ? '#e74c3c' : '#05c46b';
+        const signo = isGasto ? '-' : '+';
+        const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
+        const icono = c.es_comprable ? (isGasto ? '🛒' : '⭐') : '🔒';
+
+        const btnToggle = `<button class="btn-toggle ${c.es_comprable ? 'is-comprable' : 'is-info'}"
+                    title="${c.es_comprable ? 'Activo. Pulsa para hacerlo solo informativo.' : 'Solo informativo. Pulsa para activarlo.'}"
+                    onclick="toggleComprable(${c.id}, ${c.es_comprable ? 0 : 1})">
+                    ${c.es_comprable ? '🛒 Comprable' : '🔒 Informativo'}
+               </button>`;
+
+        const freqActual = c.frecuencia || '';
+        const opt = (v, t) => `<option value="${v}"${freqActual === v ? ' selected' : ''}>${t}</option>`;
+        const selFrec = `<select class="sel-frec ${freqActual ? 'activa' : ''}"
+                    title="Cada cuánto se aplica este concepto a TODA la clase"
+                    onchange="cambiarFrecuencia(${c.id}, this.value)">
+                    ${opt('', '🔁 No recurrente')}
+                    ${opt('diaria', 'Diaria')}
+                    ${opt('semanal', 'Semanal')}
+                    ${opt('quincenal', 'Quincenal')}
+                    ${opt('mensual', 'Mensual')}
+               </select>`;
+
+        // Solo los Ingresos pueden ser "trabajo" (un sueldo asignable a un alumno).
+        const btnTrabajo = isGasto ? '' : `<button class="btn-toggle ${c.es_trabajo ? 'is-comprable' : 'is-info'}"
+                    title="${c.es_trabajo ? 'Es un trabajo asignable a un alumno. Pulsa para que deje de serlo.' : 'No es trabajo. Pulsa para marcarlo como sueldo asignable a un alumno.'}"
+                    onclick="toggleTrabajo(${c.id}, ${c.es_trabajo ? 0 : 1})">
+                    ${c.es_trabajo ? '💼 Trabajo' : '💼 No'}
+               </button>`;
+
+        return `<li class="item-recurso" style="border-left:3px solid ${color};">
+            <label class="item-label">
+                <input type="checkbox" class="chk-recurso" value="${c.id}">
+                <span style="font-size:12px;">${icono} <b>${esc(c.concepto)}</b><br><span style="color:${color}; font-weight:bold;">${signo}${dec(c.valor)} RC</span></span>
+            </label>
+            <div class="item-acciones">
+                ${btnToggle}
+                ${btnTrabajo}
+                ${selFrec}
+                <button class="btn-action btn-magic" title="Editar concepto o valor" onclick="editarRecurso(${c.id}, '${conceptoEsc}', ${c.valor})">✏️</button>
+                <button class="btn-action btn-nuclear" title="Eliminar" onclick="borrarRecurso(${c.id})">🗑️</button>
+            </div>
+        </li>`;
+    }
+
+    // Pinta una columna (Gastos o Ingresos) agrupada por categorías, con cabecera y contador
+    function renderColumnaTarifario(catalogo, tipo, orden) {
+        const grupos = {};
+        catalogo.filter(c => c.tipo === tipo).forEach(c => {
+            const cat = categoriaDe(c);
+            (grupos[cat] = grupos[cat] || []).push(c);
+        });
+        let html = '';
+        orden.forEach(cat => {
+            if (!grupos[cat]) return;
+            const meta = CATS[cat];
+            html += `<li class="cat-header" style="border-left-color:${meta.color};">
+                        <span>${meta.icono} ${cat}</span><span class="cat-count">${grupos[cat].length}</span>
+                     </li>`;
+            grupos[cat]
+                .sort((a, b) => (a.concepto || '').localeCompare(b.concepto || '', 'es'))
+                .forEach(c => { html += itemRecursoHTML(c); });
+        });
+        return html;
+    }
+
     async function cargarCatalogoAdmin() {
         if (!grupoActual) { catalogoCache = []; rellenarDatalistConceptos([]); return; }
         const res = await fetch(conGrupo('/catalogo'));
         const catalogo = await res.json();
         catalogoCache = catalogo;            // guardamos para la Transacción Masiva
         rellenarDatalistConceptos(catalogo); // refrescamos el desplegable de conceptos
-        const listaGastos = document.getElementById('admin-lista-gastos');
-        const listaIngresos = document.getElementById('admin-lista-ingresos');
-        listaGastos.innerHTML = '';
-        listaIngresos.innerHTML = '';
 
         // Reseteamos el "Seleccionar todo" al recargar
         const chkTodos = document.getElementById('chk-todos');
         if (chkTodos) chkTodos.checked = false;
 
-        catalogo.forEach(c => {
-            const isGasto = c.tipo === 'Gasto';
-            const color = isGasto ? '#e74c3c' : '#05c46b';
-            const signo = isGasto ? '-' : '+';
-            const conceptoEsc = (c.concepto || '').replace(/'/g, "\\'");
-            // El icono refleja el estado y el tipo:
-            //   gasto comprable -> 🛒 | ingreso comprable -> ⭐ | cualquiera informativo -> 🔒
-            const icono = c.es_comprable ? (isGasto ? '🛒' : '⭐') : '🔒';
-
-            // Toggle comprable / informativo para AMBOS (gastos e ingresos).
-            // Muestra el estado ACTUAL y al pulsarlo lo cambia al contrario.
-            const btnToggle = `<button class="btn-toggle ${c.es_comprable ? 'is-comprable' : 'is-info'}"
-                        title="${c.es_comprable ? 'Activo. Pulsa para hacerlo solo informativo.' : 'Solo informativo. Pulsa para activarlo.'}"
-                        onclick="toggleComprable(${c.id}, ${c.es_comprable ? 0 : 1})">
-                        ${c.es_comprable ? '🛒 Comprable' : '🔒 Informativo'}
-                   </button>`;
-
-            // Desplegable de frecuencia (recurrencia). Cambiable en cualquier momento.
-            const freqActual = c.frecuencia || '';
-            const opt = (v, t) => `<option value="${v}"${freqActual === v ? ' selected' : ''}>${t}</option>`;
-            const selFrec = `<select class="sel-frec ${freqActual ? 'activa' : ''}"
-                        title="Cada cuánto se aplica este concepto a TODA la clase"
-                        onchange="cambiarFrecuencia(${c.id}, this.value)">
-                        ${opt('', '🔁 No recurrente')}
-                        ${opt('diaria', 'Diaria')}
-                        ${opt('semanal', 'Semanal')}
-                        ${opt('quincenal', 'Quincenal')}
-                        ${opt('mensual', 'Mensual')}
-                   </select>`;
-
-            // Solo los Ingresos pueden ser "trabajo" (un sueldo asignable a un alumno).
-            const btnTrabajo = isGasto ? '' : `<button class="btn-toggle ${c.es_trabajo ? 'is-comprable' : 'is-info'}"
-                        title="${c.es_trabajo ? 'Es un trabajo asignable a un alumno. Pulsa para que deje de serlo.' : 'No es trabajo. Pulsa para marcarlo como sueldo asignable a un alumno.'}"
-                        onclick="toggleTrabajo(${c.id}, ${c.es_trabajo ? 0 : 1})">
-                        ${c.es_trabajo ? '💼 Trabajo' : '💼 No'}
-                   </button>`;
-
-            const itemHTML = `<li class="item-recurso" style="border-left:3px solid ${color};">
-                <label class="item-label">
-                    <input type="checkbox" class="chk-recurso" value="${c.id}">
-                    <span style="font-size:12px;">${icono}${c.es_trabajo ? '💼' : ''} <b>${c.concepto}</b><br><span style="color:${color}; font-weight:bold;">${signo}${c.valor} RC</span></span>
-                </label>
-                <div class="item-acciones">
-                    ${btnToggle}
-                    ${btnTrabajo}
-                    ${selFrec}
-                    <button class="btn-action btn-magic" title="Editar concepto o valor" onclick="editarRecurso(${c.id}, '${conceptoEsc}', ${c.valor})">✏️</button>
-                    <button class="btn-action btn-nuclear" title="Eliminar" onclick="borrarRecurso(${c.id})">🗑️</button>
-                </div>
-            </li>`;
-            if (isGasto) { listaGastos.innerHTML += itemHTML; }
-            else { listaIngresos.innerHTML += itemHTML; }
-        });
+        document.getElementById('admin-lista-gastos').innerHTML =
+            renderColumnaTarifario(catalogo, 'Gasto', ORDEN_GASTOS) || '<li style="color:gray; font-size:12px;">Sin gastos.</li>';
+        document.getElementById('admin-lista-ingresos').innerHTML =
+            renderColumnaTarifario(catalogo, 'Ingreso', ORDEN_INGRESOS) || '<li style="color:gray; font-size:12px;">Sin ingresos.</li>';
 
         // Si la tabla de alumnos ya está pintada, refrescamos sus desplegables de
         // trabajo (la lista de trabajos pudo cambiar al añadir/marcar/borrar conceptos).
