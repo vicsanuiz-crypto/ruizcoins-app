@@ -152,7 +152,10 @@
 <div class="container">
     <div class="header-bar">
         <h1>🏛️ Central Bank (Admin)</h1>
-        <button class="btn-action btn-add" onclick="addStudent()">➕ Añadir alumno</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <button class="btn-action btn-add" onclick="addStudent()">➕ Añadir alumno</button>
+            <button class="btn-action btn-danger" onclick="cerrarSesionAdmin()" title="Cerrar sesión: olvida la clave en este navegador y vuelve a la pantalla de entrada">🚪 Salir</button>
+        </div>
     </div>
 
     <!-- Selector de CLASE: todo lo que se ve abajo (alumnos, tarifario, avisos) es de la clase elegida -->
@@ -369,6 +372,15 @@
         } else {
             err.style.display = 'block';
         }
+    }
+
+    // Cierra la sesión del maestro: olvida la clave guardada en este navegador
+    // y vuelve a la pantalla de entrada. Útil en ordenadores compartidos.
+    function cerrarSesionAdmin() {
+        if (!confirm('¿Cerrar sesión?\n\nEl panel olvidará la clave en este navegador y la pedirá la próxima vez.')) return;
+        adminKey = '';
+        localStorage.removeItem('ruiz_admin_key');
+        mostrarPantallaClave();
     }
 
     // Envoltorio de fetch: añade la clave a todas las llamadas a la API y, si el
