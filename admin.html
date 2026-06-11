@@ -95,6 +95,8 @@
         .hist-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #34495e; font-size: 13px; gap: 10px; }
         .hist-amount.plus { color: #05c46b; font-weight: bold; white-space: nowrap; }
         .hist-amount.minus { color: #ff3f34; font-weight: bold; white-space: nowrap; }
+
+        .footer-version { text-align: center; color: #576574; font-size: 11px; margin-top: 30px; }
     </style>
 </head>
 <body>
@@ -220,6 +222,8 @@
             </div>
         </div>
     </div>
+
+    <p class="footer-version">RuizCoins · Economía de aula · v2.0</p>
 </div>
 
 <!-- Modal de historial de movimientos -->
@@ -235,6 +239,33 @@
 
 <script>
     const API_BASE_URL = 'https://vicsanuiz.pythonanywhere.com/api';
+
+    // ---------- CLAVE DE ADMINISTRACIÓN ----------
+    // El backend exige la cabecera X-Admin-Key en todas las rutas del maestro.
+    // Se pide una vez y se recuerda en este navegador. Si el backend responde 401,
+    // se vuelve a pedir (clave cambiada o incorrecta).
+    let adminKey = localStorage.getItem('ruiz_admin_key') || '';
+    function pedirClaveAdmin(msg) {
+        const k = prompt(msg || '🔑 Clave de administración del panel:');
+        if (k !== null && k.trim()) {
+            adminKey = k.trim();
+            localStorage.setItem('ruiz_admin_key', adminKey);
+        }
+    }
+    // Envoltorio de fetch: añade la clave a todas las llamadas a la API y
+    // detecta el 401 para volver a pedirla.
+    const _fetchOriginal = window.fetch.bind(window);
+    window.fetch = async (url, opts = {}) => {
+        if (typeof url === 'string' && url.startsWith(API_BASE_URL)) {
+            opts.headers = Object.assign({}, opts.headers || {}, { 'X-Admin-Key': adminKey });
+            const res = await _fetchOriginal(url, opts);
+            if (res.status === 401) {
+                pedirClaveAdmin('🔑 Clave incorrecta o caducada. Escribe la clave de administración:');
+            }
+            return res;
+        }
+        return _fetchOriginal(url, opts);
+    };
 
     // Copia en memoria del tarifario, para poder rellenar el valor en la Transacción Masiva
     let catalogoCache = [];
@@ -1070,6 +1101,8 @@
 
     // ---------- ARRANQUE ----------
     document.addEventListener('DOMContentLoaded', () => {
+        // Primero la clave de administración (si no está guardada en este navegador)
+        if (!adminKey) pedirClaveAdmin();
         // Carga la lista de clases, fija la clase activa y, a través de recargarTodo(),
         // pinta alumnos, tarifario, avisos y config de esa clase.
         cargarClases();
