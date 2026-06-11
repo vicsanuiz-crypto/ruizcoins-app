@@ -97,6 +97,19 @@
         .hist-amount.minus { color: #ff3f34; font-weight: bold; white-space: nowrap; }
 
         .footer-version { text-align: center; color: #576574; font-size: 11px; margin-top: 30px; }
+
+        /* Modal de pago/multa: pestañas desplegables con conceptos del tarifario */
+        .tx-det { border: 1px solid #34495e; border-radius: 6px; margin-bottom: 8px; background: #1e272e; }
+        .tx-det summary { cursor: pointer; padding: 9px 12px; font-weight: bold; font-size: 13px; user-select: none; }
+        .tx-det summary:hover { background: #34495e; border-radius: 6px; }
+        .det-multas summary { color: #ff3f34; }
+        .det-pagos summary { color: #05c46b; }
+        .tx-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 12px 12px; }
+        .chip { border: none; border-radius: 14px; padding: 6px 11px; font-size: 12px; cursor: pointer; color: #fff; }
+        .chip-multa { background: #8c2b24; }
+        .chip-pago { background: #0a7a47; }
+        .chip:hover { outline: 2px solid #0fbcf9; }
+        .chip small { opacity: .9; font-weight: bold; margin-left: 3px; }
     </style>
 </head>
 <body>
@@ -224,6 +237,39 @@
     </div>
 
     <p class="footer-version">RuizCoins · Economía de aula · v2.0</p>
+</div>
+
+<!-- Modal de pago/multa individual: concepto + cantidad + pestañas con el tarifario -->
+<div id="modal-tx" class="modal-overlay" onclick="cerrarModalTx(event)">
+    <div class="modal-box">
+        <div class="modal-head">
+            <h3 id="tx-titulo">Pago / Multa</h3>
+            <button class="btn-action btn-danger" onclick="cerrarModalTx()">✖</button>
+        </div>
+        <div class="modal-body">
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin:10px 0;">
+                <input type="text" id="tx-concepto" placeholder="Concepto (o elige uno abajo)"
+                       style="flex:1; min-width:180px; padding:9px;"
+                       oninput="txTipoElegido=null; document.getElementById('tx-aviso').textContent='';">
+                <input type="number" id="tx-cantidad" placeholder="RC" step="any" min="0" style="width:85px; padding:9px;">
+            </div>
+
+            <details id="tx-det-multas" class="tx-det det-multas">
+                <summary>⚠️ Multas del tarifario</summary>
+                <div class="tx-chips" id="tx-chips-multas"></div>
+            </details>
+            <details id="tx-det-pagos" class="tx-det det-pagos">
+                <summary>💰 Pagos del tarifario</summary>
+                <div class="tx-chips" id="tx-chips-pagos"></div>
+            </details>
+
+            <p id="tx-aviso" style="font-size:12px; color:#808e9b; min-height:15px; margin:6px 0;"></p>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button class="btn-action btn-danger" style="padding:9px 16px;" onclick="cerrarModalTx()">Cancelar</button>
+                <button class="btn-magic" onclick="confirmarTx()">Aceptar</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Modal de historial de movimientos -->
@@ -469,8 +515,8 @@
                     <td><select class="sel-trabajo" title="Trabajo del alumno (se paga solo en su periodo)"
                                onchange="asignarTrabajo(${s.id_alumno}, this.value)">${opcionesTrabajos(s.trabajo_id)}</select></td>
                     <td>
-                        <button class="btn-action btn-pay"  onclick="adminTransaction(${s.id_alumno}, 'pay')">+ Pagar</button>
-                        <button class="btn-action btn-fine" onclick="adminTransaction(${s.id_alumno}, 'fine')">- Multar</button>
+                        <button class="btn-action btn-pay"  onclick="abrirModalTx(${s.id_alumno}, '${nombreEsc}', 'pay')">+ Pagar</button>
+                        <button class="btn-action btn-fine" onclick="abrirModalTx(${s.id_alumno}, '${nombreEsc}', 'fine')">- Multar</button>
                         <button class="btn-action btn-magic" title="Ver historial" onclick="verHistorial(${s.id_alumno}, '${nombreEsc}')">📜</button>
                         <button class="btn-action btn-delete" onclick="deleteStudent(${s.id_alumno}, '${nombreEsc}')">🗑️</button>
                     </td>
@@ -515,21 +561,74 @@
         loadClass();
     }
 
-    async function adminTransaction(id, mode) {
-        const concepto = prompt(mode === 'pay' ? 'Concepto del pago:' : 'Motivo de la multa:');
-        if (concepto === null) return;
-        const cantidadStr = prompt('¿Cuántos RC?');
-        if (cantidadStr === null) return;
-        let cantidad = parseFloat(cantidadStr);
-        if (isNaN(cantidad) || cantidad <= 0) return alert('Cantidad no válida.');
-        if (mode === 'fine') cantidad = -cantidad;
+    // ---------- PAGO / MULTA INDIVIDUAL (modal con conceptos del tarifario) ----------
+    // Sustituye a los antiguos prompt(): un solo diálogo con el concepto, la cantidad
+    // y dos pestañas desplegables (Multas en rojo, Pagos en verde) para elegir
+    // conceptos existentes de un toque. Se puede seguir escribiendo a mano.
+    let txAlumnoId = null;
+    let txTipoElegido = null;   // 'Gasto' | 'Ingreso' | null (= escrito a mano)
+    let txModo = 'pay';
+
+    function abrirModalTx(idAlumno, nombre, modo) {
+        txAlumnoId = idAlumno;
+        txModo = modo;
+        txTipoElegido = null;
+        document.getElementById('tx-titulo').textContent = (modo === 'pay' ? '💰 Pagar a ' : '⚠️ Multar a ') + nombre;
+        document.getElementById('tx-concepto').value = '';
+        document.getElementById('tx-cantidad').value = '';
+        document.getElementById('tx-aviso').textContent = '';
+
+        // Chips: Multas = Gastos de la categoría Multas; Pagos = todos los Ingresos
+        const multas = catalogoCache.filter(c => c.tipo === 'Gasto' && categoriaDe(c) === 'Multas');
+        const pagos = catalogoCache.filter(c => c.tipo === 'Ingreso');
+        const chip = c => `<button class="chip ${c.tipo === 'Gasto' ? 'chip-multa' : 'chip-pago'}"
+            onclick="elegirChipTx(${c.id})">${esc(c.concepto)}<small>${c.tipo === 'Gasto' ? '-' : '+'}${dec(c.valor)}</small></button>`;
+        document.getElementById('tx-chips-multas').innerHTML =
+            multas.map(chip).join('') || '<span style="font-size:11px;color:#808e9b;">No hay multas en el tarifario.</span>';
+        document.getElementById('tx-chips-pagos').innerHTML =
+            pagos.map(chip).join('') || '<span style="font-size:11px;color:#808e9b;">No hay pagos en el tarifario.</span>';
+
+        // Abrimos desplegada la pestaña del botón pulsado (-Multar -> Multas, +Pagar -> Pagos)
+        document.getElementById('tx-det-multas').open = (modo === 'fine');
+        document.getElementById('tx-det-pagos').open = (modo === 'pay');
+
+        document.getElementById('modal-tx').classList.add('show');
+        document.getElementById('tx-concepto').focus();
+    }
+
+    function elegirChipTx(idConcepto) {
+        const c = catalogoCache.find(x => x.id === idConcepto);
+        if (!c) return;
+        document.getElementById('tx-concepto').value = c.concepto;
+        document.getElementById('tx-cantidad').value = c.valor;
+        txTipoElegido = c.tipo;
+        document.getElementById('tx-aviso').textContent = c.tipo === 'Gasto'
+            ? `Se COBRARÁN ${dec(c.valor)} RC al alumno.`
+            : `Se PAGARÁN ${dec(c.valor)} RC al alumno.`;
+    }
+
+    async function confirmarTx() {
+        const concepto = document.getElementById('tx-concepto').value.trim();
+        let cantidad = parseFloat(document.getElementById('tx-cantidad').value);
+        if (!concepto) return alert('Escribe o elige un concepto.');
+        if (isNaN(cantidad) || cantidad <= 0) return alert('Pon una cantidad válida (mayor que 0).');
+        // El signo lo decide el concepto elegido (multa cobra, pago abona); si se
+        // escribió a mano, lo decide el botón que abrió el diálogo (+Pagar / -Multar).
+        const esCobro = txTipoElegido ? (txTipoElegido === 'Gasto') : (txModo === 'fine');
+        if (esCobro) cantidad = -cantidad;
 
         await fetch(`${API_BASE_URL}/admin/transaction`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ id_alumno: id, cantidad, concepto: concepto || 'Ajuste manual' })
+            body: JSON.stringify({ id_alumno: txAlumnoId, cantidad, concepto })
         });
+        cerrarModalTx();
         loadClass();
+    }
+
+    function cerrarModalTx(event) {
+        if (event && event.target !== document.getElementById('modal-tx')) return;
+        document.getElementById('modal-tx').classList.remove('show');
     }
 
     // Cambia el número/ID de un alumno (su acceso). Sirve para asignar números de lista / CIAL.
